@@ -14,7 +14,7 @@
 |---|---|---|---|
 | fabriq | `fabriq__` | 100 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
 | fabriq_evidence_manager | `fabriq_evidence_manager__` | 0 (未着手) | `FabriqEvidenceManager.csproj <Version>` = 3.8.0 |
-| fabriq_studio | `fabriq_studio__` | 0 (未着手) | `FabriqStudio.csproj` / git short hash |
+| fabriq_studio | `fabriq_studio__` | 9 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
 | tonebender | `tonebender__` | 0 (未着手) | git short hash |
 | tonebender-controller | `tonebender_controller__` | 0 (未着手) | git short hash |
 
@@ -153,19 +153,31 @@
 
 ---
 
-## fabriq_studio (0 files)
+## fabriq_studio (9 files)
 
-未着手。`fabriq_studio__` プレフィックスで以下のような構成を予定。
+### overview (1)
 
 - `fabriq_studio__overview__readme.md`
+
+### architecture (2)
+
 - `fabriq_studio__architecture__01_layers.md`
-- `fabriq_studio__apps__01_host_editor.md`
-- `fabriq_studio__apps__02_module_editor.md`
-- `fabriq_studio__apps__03_pianist_profile_editor.md`
-- `fabriq_studio__apps__04_registry_dictionary.md`
+- `fabriq_studio__architecture__02_workspace.md`
+
+### apps (4)
+
+- `fabriq_studio__apps__01_main_pages.md`
+- `fabriq_studio__apps__02_pianist_profile_editor.md`
+- `fabriq_studio__apps__03_registry_collection.md`
+- `fabriq_studio__apps__04_other_tools.md`
+
+### contracts (1)
+
+- `fabriq_studio__contracts__crypto_interop.md`
+
+### usage (1)
+
 - `fabriq_studio__usage__01_workspace_setup.md`
-- `fabriq_studio__usage__02_overlay_update.md`
-- `fabriq_studio__reference__appsettings_schema.md`
 
 ---
 
