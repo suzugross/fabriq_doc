@@ -1,7 +1,7 @@
 # ベースライン突合の使い方
 
 > **対象**: fabriq_evidence_manager / usage
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 フリート 1 台を「ベースライン PC」として選び、他の全 PC が同じ posture（OS バージョン / ライセンス / モジュール実行成否 / インストール済みアプリ等）を持っているかを **PC 内部の差分ではなく PC 間の差分** として検証する機能。hostlist 突合（個別 PC × hostlist の期待値）とは直交する第 2 の検証軸。
@@ -20,16 +20,17 @@
 
 ---
 
-## 6 カテゴリの内容
+## 7 カテゴリの内容
 
-`IBaselineComparator` プラグイン 6 件が並列に動く（`App.xaml.cs` で 6 件すべて DI 登録済み）：
+`IBaselineComparator` プラグイン 7 件が並列に動く（`App.xaml.cs` で 7 件すべて DI 登録済み）。**v3.8.1 で従来の `InstalledApps` 1 カテゴリが Desktop / Store の 2 カテゴリに分離**された（同名アプリが Desktop / Store の両方にあるケースで誤マッチしないよう、キーを「Source × アプリ名」化）：
 
 | 表示名 | CategoryId | 比較対象（baseline ⇔ target） | 既定 |
 |---|---|---|---|
 | 実行サマリ | `ExecutionSummary` | `export_history.csv` の `ModuleName × Status`（不一致 / Missing / Extra を別タグで計上） | 有効 |
 | SystemInfo | `SystemInfo` | `01_SystemInfo.txt` の OS 名 / OS バージョン / CPU / メモリ（4 項目） | 有効 |
 | チェックリスト | `Checklist` | チェックリスト HTML の `OverallStatus + VerifyItems`（PASS/FAIL の項目別比較） | 有効 |
-| インストール済みアプリ | `InstalledApps` | `11_DesktopApps.csv` + `11_StoreApps.csv` 統合の `Name × Version`。一致は集計のみ、差分のみ列挙 | 有効 |
+| デスクトップアプリ | `DesktopApps` | `11_DesktopApps.csv` の `Name × Version`。一致は集計のみ、差分のみ列挙 | 有効 |
+| ストアアプリ | `StoreApps` | `11_StoreApps.csv` の `Name × Version`。一致は集計のみ、差分のみ列挙 | 有効 |
 | ライセンス | `License` | §21 Windows License + §22 Office License（typed model 直比較）、Win 4 + Office 4 = 最大 8 項目 | 有効 |
 | ドメイン参加状態 | `DomainStatus` | §05 DomainStatus（CurrentUser を除く 7 項目: ドメイン参加 / ドメイン名 / ロール / Azure AD 参加 / AD 参加 / AD 名 / テナント名） | 有効 |
 
@@ -50,7 +51,7 @@
 1. DataGrid でパイロット PC（基準にしたい 1 台）の行をクリックして選択
 2. `選択PCをベースラインに設定` ボタン
 
-`IBaselineService.LoadFromPc(SelectedPc)` が走り、6 Comparator 全部に `CacheBaseline(baselinePc)` が発火 → 各カテゴリのスナップショットがメモリに乗る。
+`IBaselineService.LoadFromPc(SelectedPc)` が走り、7 Comparator 全部に `CacheBaseline(baselinePc)` が発火 → 各カテゴリのスナップショットがメモリに乗る。
 
 ステータスバー: `ベースラインPCを設定しました: {PcName}`、`BaselineStatusText="ベースラインPC: {PcName}"`、全 PC の Caution 判定が再実行される。
 
@@ -59,8 +60,8 @@
 | 場所 | 内容 |
 |---|---|
 | DataGrid 行ハイライト（黄） | `CautionMessage` に `"ベースライン差異(N件)"` |
-| PC 詳細ウィンドウの `BASELINE — ...` セクション群 | 6 カテゴリのサブセクションが個別に展開 |
-| Excel 台帳の `ベースライン_*` シート | 6 カテゴリ × フリート全 PC の差分 |
+| PC 詳細ウィンドウの `BASELINE — ...` セクション群 | 7 カテゴリのサブセクションが個別に展開 |
+| Excel 台帳の `ベースライン_*` シート | 7 カテゴリ × フリート全 PC の差分 |
 
 ベースライン PC 自身を target にした場合は理論上全項目 Match になる（`SystemInfoComparator` 等が「両側空文字列も Match に倒す」防御的判定を入れているため、Office 未インストール機などの空フィールドが false-positive にならない）。
 
@@ -76,7 +77,7 @@ OFF にしてもキャッシュ済みベースラインデータは破棄され�
 
 ### 5. クリアする
 
-`Baseline PC:` 行の `クリア` ボタン → `IBaselineService.Clear()` で全 6 Comparator の `ClearBaseline()` を発火。`BaselineStatusText="未設定"`、Caution 判定が再実行されてベースライン関連のオレンジ警告が消える。
+`Baseline PC:` 行の `クリア` ボタン → `IBaselineService.Clear()` で全 7 Comparator の `ClearBaseline()` を発火。`BaselineStatusText="未設定"`、Caution 判定が再実行されてベースライン関連のオレンジ警告が消える。
 
 ---
 
@@ -109,9 +110,11 @@ baseline と target の両方からチェックリスト HTML をパースし：
 
 VerifyItems の同名項目が複数あるときは最後勝ち。
 
-### インストール済みアプリ（InstalledApps）
+### デスクトップアプリ / ストアアプリ（DesktopApps / StoreApps）
 
-`11_DesktopApps.csv` + `11_StoreApps.csv` を統合し、アプリ `Name`（`OrdinalIgnoreCase`）でキーにして突き合わせる：
+v3.8.1 で per-source 別管理に分離。`DesktopAppsComparator` は `11_DesktopApps.csv`、`StoreAppsComparator` は `11_StoreApps.csv` をそれぞれ独立に処理し、共通比較ロジックは `InstalledAppsCompareLogic` 静的ヘルパに集約されている。
+
+両 Comparator はアプリ `Name`（`OrdinalIgnoreCase`）でキーにして突き合わせる：
 
 | 状態 | 出力 |
 |---|---|
@@ -120,7 +123,9 @@ VerifyItems の同名項目が複数あるときは最後勝ち。
 | baseline にだけある | `Items` に `NoActual`（"(未検出)"） |
 | target にだけある | `Items` に `NoExpected`（"(ベースラインなし)"） |
 
-`InstalledAppsComparisonResult` は `TotalBaselineCount / TotalActualCount / MatchCount / Items` を保持し、Excel 出力で「総数 N 件、一致 M 件、差分 K 件」のサマリ + 差分行を生成する。
+各 Comparator の出力は `InstalledAppsComparisonResult` 型（共通）で `TotalBaselineCount / TotalActualCount / MatchCount / Items` を保持。`BaselineComparisonReport` 上では `DesktopAppsComparison` / `StoreAppsComparison` の 2 プロパティに別々に格納され、Excel 出力でも 2 シート（`ベースライン_アプリ_Desktop` / `_Store`）に分かれる。
+
+なお Desktop / Store のキーが分離されたことで、同名アプリが両ストアに存在するケース（例: M365 系）の誤マッチが解消されている。
 
 ### ライセンス（License）
 
@@ -160,7 +165,7 @@ public int Load(string csvFilePath)
 }
 ```
 
-`ExecutionSummaryComparator.LoadFromCsv` のみが `_baselineMap` を埋める形。`SystemInfo / Checklist / InstalledApps / License / DomainStatus` の 5 つは PC 全体（`PcEvidence` 参照）を要求するため、CSV 単体ロードでは無効化される。
+`ExecutionSummaryComparator.LoadFromCsv` のみが `_baselineMap` を埋める形。`SystemInfo / Checklist / DesktopApps / StoreApps / License / DomainStatus` の 6 つは PC 全体（`PcEvidence` 参照）を要求するため、CSV 単体ロードでは無効化される。
 
 現行 UI では本経路は表に出ていない（**`MainWindowViewModel` 側に CSV ベースラインロード用のコマンドは存在しない**）。`BaselineService.Compare(pcName, actualHistory)` も古い shape のまま残っているが、`CompareAll(targetPc)` への置き換えが完了している。
 
@@ -181,7 +186,8 @@ DifferenceCount =
     Items.Count(MatchStatus != Match)                 // 実行サマリ
   + (SystemInfoComparison?.MismatchCount ?? 0)
   + (ChecklistComparison?.MismatchCount ?? 0)
-  + (InstalledAppsComparison?.MismatchCount ?? 0)
+  + (DesktopAppsComparison?.MismatchCount ?? 0)
+  + (StoreAppsComparison?.MismatchCount ?? 0)
   + (LicenseComparison?.MismatchCount ?? 0)
   + (DomainStatusComparison?.MismatchCount ?? 0)
 ```
@@ -190,16 +196,17 @@ DifferenceCount =
 
 ### PC 詳細ウィンドウ
 
-`BASELINE — ...` の 6 セクションが個別表示（一致時はサマリ行 1 つに圧縮、差分時のみ詳細列挙）。詳細は [fabriq_evidence_manager__apps__02_pc_detail_window.md](fabriq_evidence_manager__apps__02_pc_detail_window.md) §「ベースライン突合（6 サブセクション）」。
+`BASELINE — ...` の 7 セクションが個別表示（一致時はサマリ行 1 つに圧縮、差分時のみ詳細列挙）。詳細は [fabriq_evidence_manager__apps__02_pc_detail_window.md](fabriq_evidence_manager__apps__02_pc_detail_window.md) §「ベースライン突合（7 サブセクション）」。
 
 ### Excel 台帳
 
-納品データ出力時、6 カテゴリそれぞれが **専用シート**として出る：
+納品データ出力時、7 カテゴリそれぞれが **専用シート**として出る：
 
 - `ベースライン_実行サマリ`
 - `ベースライン_SystemInfo`
 - `ベースライン_チェックリスト`
-- `ベースライン_アプリ`
+- `ベースライン_アプリ_Desktop`
+- `ベースライン_アプリ_Store`
 - `ベースライン_ドメイン`
 - `ベースライン_ライセンス`
 
@@ -239,7 +246,7 @@ DifferenceCount =
 `MessageBox.Show("ベースラインPCの設定に失敗しました")` + 例外メッセージ：
 
 - **`ExecutionSummaryComparator.CacheBaseline` が CSV 不在で失敗** → 既存挙動として silent 維持（throw しない）。問題なくクリアされない
-- baseline PC が `pc_information` 未取得 → `SystemInfoComparator` / `InstalledAppsComparator` の `_baseline` が null になり、対応カテゴリは silent skip
+- baseline PC が `pc_information` 未取得 → `SystemInfoComparator` / `DesktopAppsComparator` / `StoreAppsComparator` の `_baseline` が null になり、対応カテゴリは silent skip
 
 ### 全 PC で同じ項目が Mismatch
 

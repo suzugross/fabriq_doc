@@ -1,5 +1,9 @@
 # storeapp_config (Standard)
 
+> **対象**: fabriq / modules/standard/storeapp_config
+> **対象バージョン**: モジュール 1.0.0 / kernel 3.2.2（取得元: `E:\fabriq\modules\standard\storeapp_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `e513cf1`）
+> **ドキュメント更新日**: 2026-05-07
+
 **カテゴリ**: Applications
 **メニュー名**: Remove Store Apps
 **VERSION**: 1.0.0  / **REQUIRES_KERNEL**: 2.0.0
@@ -33,9 +37,9 @@ Phone Link, Groove Music, Movies & TV, Outlook for Windows, MSTeams, Quick Assis
 3. ドライラン表示（インストール済 / プロビジョニング済の現状を表示）
 4. 実行確認（AutoPilot 自動 Y）
 5. アプリループ:
-   - 5-1. `Get-AppxPackage -Name $AppName -AllUsers` → `Remove-AppxPackage`
-   - 5-2. `Get-AppxProvisionedPackage` → `Remove-AppxProvisionedPackage -Online`
-6. Step 5.5: 削除後に `Get-AppxPackage` / `Get-AppxProvisionedPackage` で再確認、
+   - 5-1. `Get-AppxPackage $AppName`（位置パラメータ、現ユーザースコープ）→ `Remove-AppxPackage`
+   - 5-2. `Get-AppxProvisionedPackage -Online | Where DisplayName -eq $AppName` → `Remove-AppxProvisionedPackage -Online -PackageName ...`
+6. Step 5.5: 削除後に同じ呼び出しで再確認（`Get-AppxPackage $AppName` + `Get-AppxProvisionedPackage -Online`）、
    両方残存なし → `[VERIFIED]`、片方でも残れば `[VERIFY FAILED]`
 7. `New-BatchResult -Verified $verified` 返却
 
@@ -49,13 +53,13 @@ Phone Link, Groove Music, Movies & TV, Outlook for Windows, MSTeams, Quick Assis
 - 既定の CSV は「業務 PC のキッティング前提でのデフォルト削除セット」として整備されている
 
 ## 検証
-Step 5.5 でアプリごとに `Get-AppxPackage -Name $AppName -AllUsers` と
-`Get-AppxProvisionedPackage -Online` を再実行し、両方の結果が空（残存なし）の場合のみ
+Step 5.5 でアプリごとに `Get-AppxPackage $AppName`（位置パラメータ、現ユーザースコープ）と
+`Get-AppxProvisionedPackage -Online`（システムレベル）を再実行し、両方の結果が空（残存なし）の場合のみ
 `[VERIFIED]` とカウント。1 件でも `[VERIFY FAILED]` があれば `-Verified=$false` で
 `New-BatchResult` に渡す。
 
-ただし「現在のユーザーセッション」と「Default プロファイル」の両方の状態は
-`-AllUsers` / `-Online` フラグで一括判定しているため、特定ユーザーに残るパッケージは
-検出されないケースがある。本モジュールが扱うのはあくまでマシンレベルの
-プロビジョニング解除 + 全ユーザー削除であり、既存ユーザープロファイルに残るアプリの
-完全クリーンアップは Profile delete 系モジュールに委ねる設計。
+検証スコープは「**現ユーザーの AppxPackage**」+「**システム全体の ProvisionedPackage**」の組み合わせ。
+`-AllUsers` フラグは使用しないため、**他ユーザーのプロファイルに残ったパッケージは検出しない**。
+本モジュールが扱うのは「現ユーザーからの削除 + プロビジョニング解除（= 新規ユーザー作成時にも
+入らない状態にする）」であり、他既存ユーザープロファイルの完全クリーンアップは別途 Profile delete 系
+モジュールで対応する設計。

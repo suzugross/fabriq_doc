@@ -129,7 +129,7 @@ profile CSV から実行可能なモジュールリストを構築する関数�
 
 ### Invoke-BatchExecution の foreach ループ（モジュール 1 件あたり）
 
-`common.ps1` L223〜の `Invoke-BatchExecution`。各 module で：
+`main.ps1` L223〜の `Invoke-BatchExecution`（`common.ps1` ではなく `main.ps1` 内に定義）。各 module で：
 
 ```
 1. Show-BatchProgress -Current N -Total M -ItemName <MenuName>

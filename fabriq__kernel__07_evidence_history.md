@@ -1,5 +1,9 @@
 # エビデンス・実行履歴・HTML チェックリスト
 
+> **対象**: fabriq / kernel + evidence_config モジュール
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ evidence_config 1.6.0（取得元: `E:\fabriq\modules\standard\evidence_config\VERSION`）+ commit `e513cf1`
+> **ドキュメント更新日**: 2026-05-07
+
 fabriq は「**やった証拠を残す**」ことを業務契約として担保する。すべてのモジュール実行はスクリーンショット PNG + 実行履歴 CSV 行 + HTML チェックリストへ反映される。
 
 ---
@@ -184,24 +188,35 @@ profile CSV の `DefinedModules` 全件 vs `ExecutionResults` を Order でク�
 
 ## evidence_config モジュール（pc_information 収集）
 
-`modules/standard/evidence_config/` は fabriq 同梱の最大規模モジュール（v1.3.0+）。22 セクションのシステム情報を `pc_information/{date}_{uid}_{pc}/` 配下に出力し、最後に `manifest.json` を `EVIDENCE_MANIFEST.md` 契約に従って書く。
+`modules/standard/evidence_config/` は fabriq 同梱の最大規模モジュール（**v1.6.0**）。**31 主セクション + サブセクション 1（id "8b"）= 計 32 件** のシステム情報を `pc_information/{date}_{uid}_{pc}/` 配下に出力し、最後に `manifest.json` を `EVIDENCE_MANIFEST.md` 契約に従って書く（2026-04-30 の inventory 拡張で §27〜§31 を追加）。
 
-### 出力例
+### 出力例（抜粋）
 
 ```
 01_SystemInfo.txt              ── ComputerInfo, OSVersion, BIOS
-02_HardwareInfo.txt            ── CPU, RAM, Disk, GPU
-03_NetworkConfig.txt           ── ipconfig /all
-...
-14_ServerRolesFeatures.csv     ── Server OS のみ（Client は Skipped）
-15_InstalledKBs.txt            ── Get-HotFix
-...
-21_Activation.txt              ── slmgr /xpr
+02 ../*.csv                    ── Local Users / Local Groups / Group Members
+05_DomainStatus.txt            ── Domain / Azure AD Status
+06_*, 07_*.csv                 ── Network Settings / Printers
+08_BitLocker.txt + 8b_*.csv    ── BitLocker + Disk & Partition Info
+10_SerialNumber.txt
+11_*.csv .. 14_*.csv           ── Installed Software / Firewall / Optional Features / Server Roles
+15_PowerSettings.txt
+16_WiFiProfiles.txt
+17_*.csv                       ── Restore Points
+18_DefenderStatus.txt
+19_*.csv                       ── Windows Update History
+20_TempBackup.txt
+21_WindowsLicense.txt          ── slmgr /xpr
 22_OfficeLicense.txt           ── Office インストールあれば、なければ Skipped
+23_SecurityBaseline.txt
+24_GroupPolicySummary.txt
+25_*.csv .. 26_BatteryReport   ── Certificates / Battery Report
+27_*.csv .. 30_*.csv           ── Environment Vars / Startup / Memory Slots / PnP（2026-04-30 追加）
+31_HardwareIdentifiers.txt     ── （2026-04-30 追加）
 manifest.json                  ── 全セクションの schemaVersion=1 manifest
 ```
 
-詳細は §11_evidence_manifest_contract.md。
+セクション 14（Server Roles）は Server OS のみ（Client は Skipped）、§22（OfficeLicense）も Office 不在時は Skipped で扱われる。詳細は [fabriq__contracts__evidence_manifest_contract.md](fabriq__contracts__evidence_manifest_contract.md)。
 
 ---
 

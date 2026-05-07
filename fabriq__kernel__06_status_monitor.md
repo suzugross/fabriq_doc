@@ -1,5 +1,9 @@
 # ステータスモニタ + 演出 (ART pulse / silence / manifesto)
 
+> **対象**: fabriq / kernel + status_monitor
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
 fabriq の二画面構成の左右の片方。メインダッシュボードとは独立した別プロセスで動き、`status.json` ファイルを polling する設計。これにより重い WinForms 処理がメイン実行をブロックしない。
 
 ---
@@ -103,14 +107,18 @@ monitor 画面の左右に並べて差分ハイライト。HTML チェックリ�
 ### 起動コマンド
 
 ```powershell
-Start-Process powershell.exe -ArgumentList @(
+$argList = @(
     "-NoProfile", "-ExecutionPolicy", "Unrestricted",
     "-File", ".\kernel\ps1\status_monitor.ps1",
     "-StatusFilePath", $statusFileFullPath,
-    "-PulseFilePath", $pulseFileFullPath,
-    "-SentenceFilePath", $sentenceFileFullPath,
+    "-PulseFilePath",  $pulseFileFullPath,
     "-SilenceFlagPath", $silenceFlagFullPath
-) -WindowStyle Hidden -PassThru
+)
+# -SentenceFilePath は art_sentences.txt が存在する場合のみ後追い追加
+if (-not [string]::IsNullOrWhiteSpace($sentenceFileFullPath)) {
+    $argList += @("-SentenceFilePath", $sentenceFileFullPath)
+}
+Start-Process powershell.exe -ArgumentList $argList -WindowStyle Hidden -PassThru
 ```
 
 PID は `$global:FabriqStatusMonitorProcess` に格納し、`Stop-StatusMonitor` で `CloseMainWindow` → 2 秒待ち → 強制 Kill。

@@ -1,7 +1,7 @@
 # hostlist 突合の使い方
 
 > **対象**: fabriq_evidence_manager / usage
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 `hostlist.csv` を「期待値」、各 PC のエビデンスを「実測値」として **PC ごとに突き合わせる** 機能。fabriq_studio で編集した端末マスター CSV が手元にある状態で、フリート全 PC が hostlist 通りにキッティングされたかを機械的に検収する。

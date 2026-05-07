@@ -1,7 +1,7 @@
 # 納品データ出力の使い方
 
 > **対象**: fabriq_evidence_manager / usage
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 検収済みの evidence フリートを **顧客納品用にディレクトリ整形 + 改ざん検出ハッシュ付き + Excel 台帳付き** で出力する機能。元データには一切触らず、すべてコピーで完結する。
@@ -141,7 +141,7 @@ E:\source\...\bitlocker\PC02_C.txt: アクセス拒否
 
 ### グループ 2: ベースライン突合（baseline 設定済みのとき）
 
-- **ベースライン_実行サマリ** / **_SystemInfo** / **_チェックリスト** / **_アプリ** / **_ドメイン** / **_ライセンス**
+- **ベースライン_実行サマリ** / **_SystemInfo** / **_チェックリスト** / **_アプリ_Desktop** / **_アプリ_Store** / **_ドメイン** / **_ライセンス**（v3.8.1 で `_アプリ` が `_Desktop` / `_Store` に分離）
 
 ### グループ 3: 各 PC のセクション横断（持っている PC があるとき条件付きで生成）
 
@@ -181,7 +181,7 @@ main 台帳の Sheet 1 冒頭 6 行に「案件メタデータブロック」を
 
 `fabriqKernelVersion / evidenceConfigVersion / PC 台数 / 突合 OK・NG 件数` は pcEvidences と manifest から **自動算出**（メタデータには持たない）。
 
-**v3.8.0 では UI からの入力経路は未実装**。コードから `ExcelExportOptions.DeliveryMetadata = new ExcelDeliveryMetadata { ... }` を渡すパスは生きているため、将来案件メタデータダイアログを追加するときにそのまま接続できる。
+**v3.8.1 でも UI からの入力経路は未実装**。コードから `ExcelExportOptions.DeliveryMetadata = new ExcelDeliveryMetadata { ... }` を渡すパスは生きているため、将来案件メタデータダイアログを追加するときにそのまま接続できる。
 
 `DeliveryMetadata is null` のときは従来通り 1 行目から列ヘッダで開始（メタデータ行を出さない）。
 
@@ -208,7 +208,7 @@ manifest_sha256.txt にも `[ERROR: ...]` 行が残るため、**納品先で「
 
 ### キャンセル
 
-ボタン押下後にキャンセルする UI は v3.8.0 ではないが、`CollectAsync` / `ExportAsync` の `CancellationToken` 経路は実装済み。将来「キャンセル」ボタンを追加するときに `IsCancellationRequested` チェックポイントが既に各ループに入っているため、変更は最小で済む。
+ボタン押下後にキャンセルする UI は v3.8.1 でも未実装だが、`CollectAsync` / `ExportAsync` の `CancellationToken` 経路は実装済み。将来「キャンセル」ボタンを追加するときに `IsCancellationRequested` チェックポイントが既に各ループに入っているため、変更は最小で済む。
 
 ---
 

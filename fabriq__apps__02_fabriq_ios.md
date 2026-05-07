@@ -1,5 +1,9 @@
 # fabriq_ios — Cisco IOS 風シェル
 
+> **対象**: fabriq / apps/fabriq_ios
+> **対象バージョン**: fabriq_ios 0.3.5（取得元: `E:\fabriq\apps\fabriq_ios\VERSION`）+ kernel 3.2.2 + commit `e513cf1`
+> **ドキュメント更新日**: 2026-05-07
+
 `apps/fabriq_ios/` は fabriq フレームワーク上に被せた **Cisco IOS スタイルのコマンドラインシェル**です。SPEC.md にて「シュルキティニスム宣言の芸術部門」と明確に位置付けられており、実用ツールではなく **art object / 思想の戯画化コンポーネント**として存在します。それでもタブ補完や省略補完は本物の Cisco IOS に近い水準で作り込まれています。
 
 ## VERSION (独立 SemVer)
@@ -98,7 +102,7 @@ Cisco IOS 完全準拠の syslog 行を生成します:
 
 - Timestamp は `*MMM dd HH:mm:ss.fff` (英語 month 強制、locale 非依存)
 - Severity 0–7 (Cisco 準拠: Emergency / Alert / Critical / Error / Warning / Notification / Informational / Debug)
-- Mnemonic = `FABRIQ-X-<FACILITY>` (HOSTNAME, INTERFACE, IPADDR, MANIFESTO, AUTOMATE, RESTART, ENABLE, EXIT)
+- Mnemonic = `FABRIQ-X-<FACILITY>` の 10 種: HOSTNAME / INTERFACE / IPADDR / MANIFESTO / AUTOMATE / RESTART / ENABLE / DISABLE / EXIT / MODULE
 
 メッセージテンプレートは `data/syslog_messages.csv` で外部編集可能。例:
 

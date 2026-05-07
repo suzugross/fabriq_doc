@@ -1,5 +1,9 @@
 # evidence_config (Standard)
 
+> **対象**: fabriq / modules/standard/evidence_config
+> **対象バージョン**: モジュール 1.6.0 / kernel 3.2.2（取得元: `E:\fabriq\modules\standard\evidence_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `e513cf1`）
+> **ドキュメント更新日**: 2026-05-07
+
 **カテゴリ**: Evidence
 **メニュー名**: Collect Evidence
 **VERSION**: 1.6.0  / **REQUIRES_KERNEL**: 2.0.0
@@ -7,24 +11,31 @@
 **サブスクリプト**: なし
 
 ## 目的
-PC のシステム情報を **22+ セクション** にわたって収集し、テキスト／CSV／HTML のエビデンスファイル一式を `evidence/pc_information/<日付>_<UID>_<PC名>/` に書き出す、fabriq の納品エビデンス採取の中核モジュールです。受入検査・官公庁監査・トラブル時の証跡として機能し、収集完了時に **`manifest.json`** を生成して各セクションの `id / title / files / status / reason / elapsedMs` を機械可読サマリ化します。これにより外部ツール（fabriq_evidence_manager 等）が manifest を起点にエビデンスを統合できる契約構造になっています。シリアル番号は 4 ソース横断 + canonical 選定 + OEM 無効値（"Default string" 等）の拒否までやる多重ソース戦略。
+PC のシステム情報を **31 主セクション (+ サブ "8b") = 計 32 セクション** にわたって収集し、テキスト／CSV／HTML のエビデンスファイル一式を `evidence/pc_information/<日付>_<UID>_<PC名>/` に書き出す、fabriq の納品エビデンス採取の中核モジュールです。受入検査・官公庁監査・トラブル時の証跡として機能し、収集完了時に **`manifest.json`** を生成して各セクションの `id / title / files / status / reason / elapsedMs` を機械可読サマリ化します。これにより外部ツール（fabriq_evidence_manager 等）が manifest を起点にエビデンスを統合できる契約構造になっています。シリアル番号は 4 ソース横断 + canonical 選定 + OEM 無効値（"Default string" 等）の拒否までやる多重ソース戦略。v1.6.0 では §27〜§31 の inventory 拡張（2026-04-30）を含みます。
 
 ## 入力 (CSV)
 **設定 CSV なし**。すべてのセクションが固定で実行されます。
 
-## 収集セクション（抜粋）
-1. システム基本情報 / 2. ローカル管理者 / 3. ネットワーク / 4. プリンター / 5. BitLocker / 6. MAC アドレス
-7. PC シリアル番号（多重ソース + canonical 選定）／ 10. シリアル番号別ファイル
-8. デスクトップアプリ / ストアアプリ CSV
-9. ファイアウォール（プロファイル + ルール）CSV
-10/11. Windows 機能 / Server Roles & Features CSV
-20. System TEMP テキストログバックアップ（セーフティネット）
-21. Windows ライセンス（SoftwareLicensingProduct + slmgr /dlv）
-22. Office ライセンス（OSPP + vNext per-user スキャン + 自動解釈 verdict）
-23. Security Baseline（TPM / Secure Boot / VBS / HVCI / Credential Guard / LSA Protection / BIOS）
-24. Group Policy Report（`gpresult /h` HTML + サマリ TXT）
-25. Certificates CSV（4 ストア統合、HasPrivateKey フラグのみ）
-26. Battery Report（`powercfg /batteryreport` HTML、受入検査での容量契約エビデンス）
+## 収集セクション（v1.6.0 時点で 31 主セクション + サブ "8b"）
+- §01 システム基本情報 / §02 ローカルユーザー (CSV) / §03 ローカルグループ (CSV) / §04 ローカルグループメンバー (CSV)
+- §05 Domain / Azure AD Status / §06 ネットワーク (CSV) / §07 プリンター/ポート (CSV)
+- §08 BitLocker / **§8b ディスク・パーティション情報 (CSV、サブセクション)** / §09 MAC アドレス (CSV)
+- §10 PC シリアル番号（多重ソース + canonical 選定 + OEM 無効値拒否）
+- §11 インストール済みソフトウェア (CSV) / §12 ファイアウォール状態 (CSV) / §13 Windows Optional Features (CSV)
+- §14 Server Roles & Features（Server OS のみ、Client は Skipped）
+- §15 電源設定 / §16 WiFi プロファイル / §17 Restore Points (CSV) / §18 Defender 状態
+- §19 Windows Update 履歴 (CSV) / §20 System TEMP テキストログバックアップ（セーフティネット）
+- §21 Windows ライセンス（SoftwareLicensingProduct + slmgr /dlv）
+- §22 Office ライセンス（OSPP + vNext per-user スキャン + 自動解釈 verdict）
+- §23 Security Baseline（TPM / Secure Boot / VBS / HVCI / Credential Guard / LSA Protection / BIOS）
+- §24 Group Policy Report（`gpresult /h` HTML + サマリ TXT）
+- §25 Certificates CSV（4 ストア統合、HasPrivateKey フラグのみ）
+- §26 Battery Report（`powercfg /batteryreport` HTML、受入検査での容量契約エビデンス）
+- §27 Environment Variables (CSV、2026-04-30 追加)
+- §28 Startup Items (CSV、2026-04-30 追加)
+- §29 Memory Slots (CSV、2026-04-30 追加)
+- §30 PnP Devices (CSV、2026-04-30 追加)
+- §31 Hardware Identifiers（2026-04-30 追加）
 
 ## 主要ステップ
 1. 出力先パス決定（`$global:FabriqEvidenceBasePath` 有無で統一パスモード／レガシーモード分岐）

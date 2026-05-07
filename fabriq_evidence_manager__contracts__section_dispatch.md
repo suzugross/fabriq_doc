@@ -1,7 +1,7 @@
 # セクション ID dispatch 契約
 
 > **対象**: fabriq_evidence_manager / contracts
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **対応 producer 契約**: fabriq kernel `EVIDENCE_MANIFEST.md schemaVersion=1` / evidence_config 1.6.0 (kernel 3.0.0)
 > **ドキュメント更新日**: 2026-05-07
 
@@ -58,7 +58,7 @@ implementation entry point は [E:\fabriq_evidence_manager\FabriqEvidenceManager
 | 8b | Disk & Partition | `_Disks.csv` + `_Partitions.csv` | Eager（自前 / 2 ファイル） | `ParseDisks` + `ParsePartitions` | `Disks` + `Partitions` |
 | 09 | MAC Addresses | `_MacAddress.csv` | Eager（自前） | `ParseMacAddresses` | `MacAddresses` |
 | 10 | PC Serial Number | `_SerialNumber.txt` | Eager（自前 / 専用ロジック） | `ApplySerialNumberDetail` → `ParseSerialNumberDetailed` | `SerialNumber / SerialNumberSource / SerialReferenceUuid / SerialSourceTrail` |
-| 11 | Installed Software | `11_DesktopApps.csv` + `11_StoreApps.csv` | On-demand | `ParseDesktopApps` + `ParseStoreApps` | (`InstalledAppsComparator` 経由) |
+| 11 | Installed Software | `11_DesktopApps.csv` + `11_StoreApps.csv` | On-demand | `ParseDesktopApps` + `ParseStoreApps` | (`DesktopAppsComparator` + `StoreAppsComparator` 経由、v3.8.1 で分割) |
 | 12 | Firewall | `_FirewallProfiles.csv` + `_FirewallRules.csv` | Eager（自前 / 2 ファイル） | `ParseFirewallProfiles` + `ParseFirewallRules` | `FirewallProfiles` + `FirewallRules` |
 | 13 | Optional Features | `_OptionalFeatures.csv` | Eager（自前） | `ParseOptionalFeatures` | `OptionalFeatures` |
 | 14 | Server Roles & Features | (Client OS では Skipped) | dispatch 対象外 | — | — |

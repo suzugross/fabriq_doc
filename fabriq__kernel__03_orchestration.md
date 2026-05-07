@@ -1,6 +1,10 @@
 # オーケストレーション層
 
-カーネルがモジュールをどう順序付けて呼び出し、結果を集約するか。`main.ps1` のメインループと `common.ps1` の `Invoke-BatchExecution` / `Invoke-FlexProfileLoop` がコア。
+> **対象**: fabriq / kernel
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
+カーネルがモジュールをどう順序付けて呼び出し、結果を集約するか。`main.ps1` 内の `Invoke-BatchExecution` / `Invoke-FlexProfileLoop` / `Invoke-WindowsUpdateLoop` がコア（`common.ps1` ではなく `main.ps1` に集約されている）。
 
 ---
 
@@ -52,7 +56,7 @@ kernel/main.ps1
 
 ## Invoke-BatchExecution（プロファイル一括実行の中核）
 
-`common.ps1` 内、約 320 行のメイン関数。Linear `Execute Profile` も FlexProfile の `RunBatch` / `RunSingle` / `RunGroup` も最終的にここを通る。
+`main.ps1` 内、L223〜（次の `Invoke-FlexProfileLoop` が L561 なので約 340 行規模）のメイン関数。Linear `Execute Profile` も FlexProfile の `RunBatch` / `RunSingle` / `RunGroup` も最終的にここを通る。
 
 ### パラメータ
 

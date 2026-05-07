@@ -1,5 +1,9 @@
 # カーネル全体像
 
+> **対象**: fabriq / kernel
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
 **現行版**: `kernel/KERNEL_VERSION` = `3.2.2`（fabriq ver3.2 — *Manifeste du Surkitinisme*）
 
 ## カーネルとは何か
@@ -54,13 +58,13 @@ kernel/
 │   ├── workers.csv         ── 作業者マスタ
 │   ├── log_destinations.csv── ログ配送先マスタ（log_uploader 用）
 │   └── manifesto.csv       ── マニフェスト本文（演出機能）
-├── json/
-│   ├── status.json         ── ステータスモニタ用ライブ状態（atomic write）
-│   ├── session.json        ── 現セッション情報（worker, media serial, start time）
-│   ├── resume_state.json   ── 再起動跨ぎ時の状態スナップショット（v1/v2 schema）
-│   ├── async_config.json   ── __ASYNC__ Runspace 制御パラメータ
-│   ├── art_pulse.txt       ── 動作鼓動カウンタ（演出用、Show-* で +1）
-│   └── skip_request.flag   ── async モジュール強制スキップ要求の flag ファイル
+├── json/                       （runtime / framework 混在 — 静的に存在するのは下記 ★ の 2 件のみ）
+│   ├── status.json         ── (runtime) ステータスモニタ用ライブ状態（atomic write）
+│   ├── session.json        ── (runtime) 現セッション情報（worker, media serial, start time）
+│   ├── resume_state.json   ── (runtime) 再起動跨ぎ時の状態スナップショット（v1/v2 schema）
+│   ├── async_config.json ★ ── (framework) __ASYNC__ Runspace 制御パラメータ
+│   ├── art_pulse.txt     ★ ── (runtime/framework) 動作鼓動カウンタ（演出用、Show-* で +1。空状態でも commit）
+│   └── skip_request.flag   ── (runtime) async モジュール強制スキップ要求の flag ファイル
 ├── ps1/
 │   ├── status_monitor.ps1  ── 別プロセス WinForms モニタ（status.json を polling）
 │   ├── view_report.ps1     ── HTML チェックリストの単体ビューア
@@ -75,6 +79,6 @@ kernel/
 ## カーネル API のポリシー
 
 - **真のソースは `kernel/KERNEL_VERSION`**。`README.md` L1 / `common.ps1` L2 / `main.ps1` L3 の版表記は `X.Y` 桁で同期。
-- **公開 API は `KERNEL_API.md` の §1〜§5 のみ**。これに記載のない `common.ps1` 関数は内部実装で、PATCH バージョンでも予告なく変更されうる。
+- **モジュールから利用する公開 API は `KERNEL_API.md` の §1〜§5**（関数・グローバル・環境変数・Profile CSV スキーマ・ModuleResult 契約）。これに記載のない `common.ps1` 関数は内部実装で、PATCH バージョンでも予告なく変更されうる。**外部ツールは加えて §9（更新オーバーレイ契約）/ §10（Evidence Manifest 契約）にも依存可**（モジュール向けではなく fabriq_studio / fabriq_evidence_manager 等の consumer 向け）。
 - **モジュール側は `REQUIRES_KERNEL` ファイル（1 行 `X.Y.Z`）で要求カーネル版を宣言**。更新オーバーレイ時に `REQUIRES_KERNEL > 現行 KERNEL_VERSION` ならカーネル先行更新を強制。
 - **API 変更は `KERNEL_API.md` の同コミット更新が必須**（CLAUDE.md ルール G）。MINOR/MAJOR 昇格に必ず追従。

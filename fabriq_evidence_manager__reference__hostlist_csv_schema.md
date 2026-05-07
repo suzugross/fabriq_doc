@@ -1,7 +1,7 @@
 # hostlist.csv スキーマリファレンス
 
 > **対象**: fabriq_evidence_manager / reference
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **対応 fabriq_studio**: hostlist 編集画面の出力（`HostListExportDialog`）
 > **ドキュメント更新日**: 2026-05-07
 

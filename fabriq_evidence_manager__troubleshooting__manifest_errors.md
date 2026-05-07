@@ -1,7 +1,7 @@
 # manifest 例外対処（Troubleshooting）
 
 > **対象**: fabriq_evidence_manager / troubleshooting
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 evidence 取り込み時に PcDetailWindow ヘッダや DataGrid の警告メッセージで「manifest 関連エラー」が表示された場合の症状別対処。`Services/ManifestExceptions.cs` で定義された 3 種の例外がそれぞれどう発生し、何を直せばよいかを整理する。

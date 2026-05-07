@@ -1,7 +1,7 @@
 # evidence 取り込み手順
 
 > **対象**: fabriq_evidence_manager / usage
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 fabriq 側 `log_uploader` が集約した evidence ディレクトリを、本アプリで取り込んでフリート一覧化するまでの手順。

@@ -1,7 +1,7 @@
 # PC 詳細ウィンドウ（PcDetailWindow）
 
 > **対象**: fabriq_evidence_manager / apps / PC 個別詳細
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **ドキュメント更新日**: 2026-05-07
 
 フリート画面（`MainWindow`）の DataGrid 行ダブルクリックで起動する **modeless ウィンドウ**。1 PC = 1 ウィンドウで完結する設計のため、複数の異なる PC を別ウィンドウで並べて並列に比較する用途を許す。サブセクションは取得状況に応じて自動表示 / 非表示が切り替わる（Visibility binding）。
@@ -9,7 +9,7 @@
 | 項目 | 内容 |
 |---|---|
 | ViewModel | `PcDetailViewModel`（DI 登録なし、`MainWindow.xaml.cs.OnPcRowDoubleClick` 内で手動 `new`） |
-| View | `Views/PcDetailWindow.xaml`（1,897 行）+ `Views/PcDetailWindow.xaml.cs` |
+| View | `Views/PcDetailWindow.xaml`（2,081 行）+ `Views/PcDetailWindow.xaml.cs` |
 | 起動 | `MainWindow.xaml` の `DataGridRow.Style` `EventSetter Event=MouseDoubleClick Handler=OnPcRowDoubleClick` |
 | ウィンドウ仕様 | `Title="{Binding Pc.PcName, StringFormat='PC 詳細: {0}'}" / Height=900 Width=800 / WindowStartupLocation=CenterOwner` |
 | レイアウト | 全体が 1 つの `ScrollViewer + StackPanel` で縦に長い構成（Tab / Expander 等は使わない） |
@@ -87,7 +87,8 @@ XAML 既定 `Height=900` が画面 `WorkArea` より大きい低解像度環境�
 | 28 | 実行履歴 | `EXECUTION HISTORY` | `ExportHistory is not null` | DataGrid（Timestamp / ModuleName / Category / Status / Message） |
 | 29 | ベースライン §SystemInfo | `BASELINE — SYSTEM INFO` | `BaselineReport.SystemInfoComparison is not null` | 4 項目: OS名 / OSバージョン / CPU / メモリ |
 | 30 | ベースライン §Checklist | `BASELINE — CHECKLIST` | `BaselineReport.ChecklistComparison is not null` | OverallStatus 期待値/実測値 + 各 VerifyItem の比較 |
-| 31 | ベースライン §InstalledApps | `BASELINE — INSTALLED APPS` | `BaselineReport.InstalledAppsComparison is not null` | 一致件数 / 差分項目（Mismatch / NoActual / NoExpected） |
+| 31a | ベースライン §DesktopApps | `BASELINE — DESKTOP APPS` | `BaselineReport.DesktopAppsComparison is not null` | 一致件数 / 差分項目（Mismatch / NoActual / NoExpected）。v3.8.1 で `InstalledApps` から分割 |
+| 31b | ベースライン §StoreApps | `BASELINE — STORE APPS` | `BaselineReport.StoreAppsComparison is not null` | 一致件数 / 差分項目。v3.8.1 で分割 |
 | 32 | ベースライン §DomainStatus | `BASELINE — DOMAIN STATUS` | `BaselineReport.DomainStatusComparison is not null` | 7 項目: ドメイン参加 / ドメイン名 / ドメインロール / Azure AD 参加 / AD ドメイン参加 / AD ドメイン名 / Azure AD テナント |
 | 33 | ベースライン §License | `BASELINE — LICENSE` | `BaselineReport.LicenseComparison is not null` | Windows: ファミリ / チャネル / 状態 / KMS Machine + Office: インストール / C2R Release / Channel / 状態 |
 | 34 | ベースライン §ExecutionSummary | `BASELINE — EXECUTION SUMMARY` | `BaselineReport.Items.Count > 0` | モジュール ×（baseline / actual / 一致 / 不一致 / Missing / Extra） |
@@ -205,13 +206,14 @@ gpresult `/h` の HTML（240KB 規模）は **メモリに読み込まず**、`H
 
 ## 8. ベースライン突合（6 サブセクション）
 
-`BaselineReport`（`BaselineComparisonReport`）の 6 つのサブフィールドを 6 つのセクションに展開：
+`BaselineReport`（`BaselineComparisonReport`）の **7 つのサブフィールド** を 7 つのセクションに展開（v3.8.1 で `InstalledAppsComparison` を `DesktopAppsComparison` + `StoreAppsComparison` に分割）：
 
 | セクション | データソース | 表示内容 |
 |---|---|---|
 | `BASELINE — SYSTEM INFO` | `SystemInfoComparison` | 4 項目（OS名 / OSバージョン / CPU / メモリ）の Expected/Actual/Status |
 | `BASELINE — CHECKLIST` | `ChecklistComparison` | OverallStatus の期待値/実測値 + 各 VerifyItem の比較 |
-| `BASELINE — INSTALLED APPS` | `InstalledAppsComparison` | 一致件数 / 不一致 / Missing / Extra（差分のみ表示、一致は集計のみ） |
+| `BASELINE — DESKTOP APPS` | `DesktopAppsComparison` | 一致件数 / 不一致 / Missing / Extra（差分のみ表示、一致は集計のみ）。v3.8.1 で分割 |
+| `BASELINE — STORE APPS` | `StoreAppsComparison` | 一致件数 / 不一致 / Missing / Extra。v3.8.1 で分割 |
 | `BASELINE — DOMAIN STATUS` | `DomainStatusComparison` | 7 項目（ドメイン参加 / ドメイン名 / ロール / Azure AD 参加 / AD 参加 / AD 名 / テナント名） |
 | `BASELINE — LICENSE` | `LicenseComparison` | Windows 4 + Office 4 = 最大 8 項目（typed model 直比較） |
 | `BASELINE — EXECUTION SUMMARY` | `Items` | モジュール × Status の対比リスト（MatchStatus = Match / Mismatch / MissingInActual / ExtraInActual） |

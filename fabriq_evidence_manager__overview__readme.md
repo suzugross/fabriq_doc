@@ -1,7 +1,7 @@
 # fabriq_evidence_manager 全体像
 
 > **対象**: fabriq_evidence_manager / 全体
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **ドキュメント更新日**: 2026-05-07
 
 ## fabriq_evidence_manager とは
@@ -61,11 +61,11 @@ fabriq 側 `evidence_config` モジュール（および `log_uploader`）が出
 |---|---|
 | Views (XAML) | 4（App.xaml + MainWindow / PcDetailWindow / SettingsWindow） |
 | ViewModels | 3（MainWindow / PcDetail / Settings） |
-| Models | 60+（集約ルート `PcEvidence` + 各セクションの DTO 群） |
-| Services | 26（インターフェース 22 / 実装 24、DI 登録 24 — 詳細は [layers](fabriq_evidence_manager__architecture__01_layers.md)） |
-| Baseline Comparators | 6（`IBaselineComparator` のプラグイン式実装） |
-| Helpers | 3（`EvidenceConstants` / `EvidencePathParser` / `LicenseStatusToBackgroundConverter`） |
-| Tests | 22 ファイル（xUnit、`TestData/` フィクスチャ駆動） |
+| Models | 64（集約ルート `PcEvidence` + 各セクションの DTO 群） |
+| Services | インターフェース 23 / 実装 29 / DI 登録 25（詳細は [layers](fabriq_evidence_manager__architecture__01_layers.md)） |
+| Baseline Comparators | **7**（`IBaselineComparator` のプラグイン式実装。v3.8.1 で `InstalledAppsComparator` を `DesktopAppsComparator` + `StoreAppsComparator` に分割） |
+| Helpers | **4**（`EvidenceConstants` / `EvidencePathParser` / `InstalledAppCountFormatter` / `LicenseStatusToBackgroundConverter`） |
+| Tests | **29** ファイル（xUnit、`TestData/` フィクスチャ駆動） |
 
 ## fabriq 側との接続点
 

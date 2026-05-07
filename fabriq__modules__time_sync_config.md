@@ -1,9 +1,13 @@
 # time_sync_config (Standard)
 
+> **対象**: fabriq / modules/standard/time_sync_config
+> **対象バージョン**: モジュール 1.0.0 / kernel 3.2.2（取得元: `E:\fabriq\modules\standard\time_sync_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `e513cf1`）
+> **ドキュメント更新日**: 2026-05-07
+
 **カテゴリ**: System
 **メニュー名**: Time Sync
 **VERSION**: 1.0.0  / **REQUIRES_KERNEL**: 2.0.0
-**Post-Apply Verification**: 実装あり（同期ソース確認、最大 5 回リトライ）
+**Post-Apply Verification**: 実装あり（同期ソース確認、最大 5 回リトライ）— ただし結果は **Status (Success/Partial) 経由のみ**で記録され、`-Verified` 引数は渡さない
 **サブスクリプト**: なし
 
 ## 目的
@@ -59,5 +63,4 @@ Step 5.4 が事実上の Post-Apply Verification:
   （NTP 経路未疎通や起動直後の一時的遅延で発生しうるが、設定自体は正しく適用されているため
   致命的失敗扱いにはしない設計判断）
 
-`-Verified` 引数の渡し方は実装上 Status と連動するため、Success の場合に Verified=true 相当の
-履歴が残る。Partial は途中までの同期試行を記録としては残す。
+**Verified 列の扱い**: `time_sync_config.ps1` は `New-ModuleResult` に `-Verified` 引数を **一度も渡さない**（L247: `Status="Partial"`、L250: `Status="Success"`）。同期ソース確認は実装されているが、結果は Status の Success / Partial 分岐のみで表現される。execution_history.csv の **Verified 列は常に空欄**になり、検証の合否は Status を見て判断する設計。

@@ -1,7 +1,7 @@
 # Models DTO 索引（開発引継ぎ用）
 
 > **対象**: fabriq_evidence_manager / reference
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 `FabriqEvidenceManager/Models/` 配下の **60+ DTO/Record/ObservableObject 型** の用途索引。型ごとに「役割 / 主要フィールド / 生成元 / 利用先 / 関連型」を 1 ブロックで明文化する。
@@ -419,7 +419,7 @@ bool? 6 件（`Present / Ready / Enabled / Activated / Owned / LockedOut`）+ st
 ### `BaselineComparisonReport`
 
 集約レポート（1 PC 分）。
-**フィールド**: `PcName : required / Items : List<BaselineComparisonItem>`（実行サマリ）+ サブカテゴリレポート 5 件（`SystemInfoComparison / ChecklistComparison / InstalledAppsComparison / LicenseComparison / DomainStatusComparison`、すべて `?`）
+**フィールド**: `PcName : required / Items : List<BaselineComparisonItem>`（実行サマリ）+ サブカテゴリレポート 6 件（`SystemInfoComparison / ChecklistComparison / DesktopAppsComparison / StoreAppsComparison / LicenseComparison / DomainStatusComparison`、すべて `?`）。v3.8.1 で従来の `InstalledAppsComparison` が `DesktopAppsComparison` / `StoreAppsComparison` の 2 プロパティに分離された（型はともに `InstalledAppsComparisonResult`）。
 **算出**: `AllMatch / DifferenceCount`（全カテゴリの不一致集計）/ `AllCategoriesMatch`
 
 ### `BaselineComparisonItem`
@@ -430,13 +430,13 @@ bool? 6 件（`Present / Ready / Enabled / Activated / Owned / LockedOut`）+ st
 
 `Match / Mismatch / MissingInActual / ExtraInActual`。
 
-### サブカテゴリレポート 5 件
+### サブカテゴリレポート 6 件
 
 すべて `Items : List<VerificationItem>` を持ち、共通プロパティ `AllMatch / MismatchCount` を提供：
 
 - `SystemInfoComparisonResult` — §01 4 項目固定
 - `ChecklistComparisonResult` — `BaselineOverallStatus / ActualOverallStatus / VerifyItemComparisons : List<VerificationItem>` + 算出 `OverallStatusMatch`
-- `InstalledAppsComparisonResult` — `Items`（差分のみ）+ `TotalBaselineCount / TotalActualCount / MatchCount : int`
+- `InstalledAppsComparisonResult` — `Items`（差分のみ）+ `TotalBaselineCount / TotalActualCount / MatchCount : int`。v3.8.1 で `BaselineComparisonReport.DesktopAppsComparison` と `StoreAppsComparison` の 2 プロパティから別々に参照される共通型として使われる
 - `LicenseComparisonResult` — Win 4 + Office 4 = 最大 8 項目
 - `DomainStatusComparisonResult` — 7 項目固定（CurrentUser 除外）
 

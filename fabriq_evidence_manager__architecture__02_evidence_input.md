@@ -1,7 +1,7 @@
 # 入力 evidence 構造と manifest dispatch
 
 > **対象**: fabriq_evidence_manager / architecture
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **対応 fabriq バージョン**: kernel 2.2.2+（schemaVersion=1）/ evidence_config 1.3.0〜1.6.0
 > **ドキュメント更新日**: 2026-05-07
 

@@ -1,5 +1,9 @@
 # モジュール全体図 — 標準 60 / 拡張 15
 
+> **対象**: fabriq / modules（standard 60 + extended 15 = 75 件）
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
 fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging されている。各モジュールは独立 SemVer で配備され、要求カーネル版を `REQUIRES_KERNEL` で宣言する。
 
 カテゴリは `kernel/csv/categories.csv` で定義され、ダッシュボードのグルーピング順序を決定する。
@@ -130,7 +134,7 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 
 | モジュール | 主な役割 | Verification |
 |---|---|---|
-| `evidence_config` | 22 セクションのシステム情報収集 + manifest.json 生成 | N/A |
+| `evidence_config` | 31 主セクション (+ サブ "8b") のシステム情報収集 + manifest.json 生成（v1.6.0） | N/A |
 
 ### Test
 

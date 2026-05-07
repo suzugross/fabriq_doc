@@ -1,7 +1,7 @@
 # Warning / Caution 2 軸判定モデル
 
 > **対象**: fabriq_evidence_manager / architecture
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **ドキュメント更新日**: 2026-05-07
 
 本アプリは **PC ごとの異常を 2 つの独立した軸（Warning = 赤 / Caution = 黄）で評価** する。両者は判定ロジック・トリガ・責務分担すべて分離されており、同時に立つこと（赤 + 黄）も独立にあり得る。本ドキュメントはその設計上の根拠と境界線を明文化する。

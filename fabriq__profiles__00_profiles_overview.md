@@ -1,10 +1,14 @@
 # profiles カタログ
 
+> **対象**: fabriq / profiles
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
 `e:/fabriq/profiles/` には fabriq の Profile (= モジュール実行手順書 CSV) のサンプル / テンプレートが収められています。実運用では各 Profile は **現場固有の編集物**であり、`framework_overlay_rules.json` により `profiles/` ツリー全体が overlay 時に **保持対象 (preserved)** に指定されています。つまりここに置かれているファイルは「あくまで出発点」で、実際のキッティング案件では現場で書き換えられて使われます。
 
 ## Profile CSV のスキーマ
 
-すべての Profile CSV は最低限 `Order,ScriptPath,Enabled,Description,Segment` の 5 列を持ちます (`Segment` は省略可)。一部の Profile (sysprep.csv, _test_harness.csv) は `Note` や `ErrorMode` 列を追加で持ち、3.2.0 以降の FlexProfile 対応 Profile は `Group` 列を持つこともあります。
+Profile CSV の **必須列は `Order,ScriptPath,Enabled` の 3 列**（`KERNEL_API.md §4.1` の真のソース）。実運用では `Description` を加えた 4 列が事実上の最小（`Custom Plan.csv` がこの形）。`Segment` / `ErrorMode` / `Group` は任意。`sysprep.csv` のみ追加で `Note` 列を持ち、`_test_harness*.csv` は `ErrorMode` 列を追加して持ちます（Note は持たない）。kernel 3.2.0 以降の FlexProfile 対応 Profile は `Group` 列を持つこともあります（同一 Group 値の行群を `[Run: <Group>]` で集約実行）。
 
 特殊マーカー:
 
@@ -95,13 +99,13 @@
 
 **シナリオ**: 出荷直前の **Sysprep 専用ライン**。`__RESTART__` をオフにしておくのは、sysprep_config 自体が再起動 / シャットダウンを最終ステップで担うため。
 
-### _test_harness.csv (11 行)
+### _test_harness.csv (12 行)
 
 `__AUTOPILOT__` で WaitSec=1 にした上で、`test_harness_config` モジュールの各セグメント (success_verified, success_verifail, success_no_verify, skipped, partial, cancelled, error_basic, retry_success, retry_exhaust) を順に呼ぶ統合テスト Profile。`__RESTART__` を中盤に挟んで resume 動作の検証もする。
 
 **シナリオ**: kernel / FlexProfile / Status Monitor のリグレッションテスト。各 Status badge 描画と ErrorMode (skip / retry) の挙動、resume 動作を 1 本で検証する。
 
-### _test_harness_async.csv (7 行)
+### _test_harness_async.csv (8 行)
 
 `__AUTOPILOT__` + `__ASYNC__` を併用し、非同期実行パスのテストを行う。`hang_sim` セグメントで Status Monitor の手動 Skip も検証対象。
 

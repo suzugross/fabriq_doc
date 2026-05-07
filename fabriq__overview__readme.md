@@ -130,7 +130,7 @@ WinForms operator dashboard 表示
 | kernel csv マスタ | 5 種（categories / hostlist / workers / log_destinations / manifesto） | kernel/csv/ |
 | **Standard モジュール** | **60 件** | README L30 + modules/standard/*/module.csv カウント + windows_update |
 | **Extended モジュール** | **15 件** | modules/extended/*/module.csv カウント（README L221 は 14 だが pianist 追加で 15） |
-| Profiles | 13 ファイル | profiles/*.csv |
+| Profiles | 10 ファイル（+ `easy_template/easyprofile.csv`） | profiles/*.csv |
 | Apps（GUI ツール群） | 9 件（fabriq_operator + 8 補助具） | apps/ |
 | Commands（ユーティリティ） | 6 件（gpupdate / temp / explore_restart / diag_crypto / get_evidence / system_launcher） | commands/ |
 | 公開契約 doc（本リポジトリ） | 6 件（KERNEL_API は kernel.md 経由） | fabriq__contracts__*.md |

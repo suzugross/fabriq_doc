@@ -1,7 +1,7 @@
 # 階層構造と DI
 
 > **対象**: fabriq_evidence_manager / architecture
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **ドキュメント更新日**: 2026-05-07
 
 ## 全体俯瞰
@@ -79,11 +79,12 @@ services.AddSingleton<IHostlistService, HostlistService>();
 services.AddSingleton<IEvidenceVerificationService, EvidenceVerificationService>();
 services.AddSingleton<IChecklistParserService, ChecklistParserService>();
 
-// Baseline plugin chain
+// Baseline plugin chain (v3.8.1 で 7 件、InstalledApps を Desktop / Store に分割)
 services.AddSingleton<IBaselineComparator, ExecutionSummaryComparator>();
 services.AddSingleton<IBaselineComparator, SystemInfoComparator>();
 services.AddSingleton<IBaselineComparator, ChecklistComparator>();
-services.AddSingleton<IBaselineComparator, InstalledAppsComparator>();
+services.AddSingleton<IBaselineComparator, DesktopAppsComparator>();
+services.AddSingleton<IBaselineComparator, StoreAppsComparator>();
 services.AddSingleton<IBaselineComparator, LicenseComparator>();
 services.AddSingleton<IBaselineComparator, DomainStatusComparator>();
 services.AddSingleton<IBaselineService, BaselineService>();
@@ -110,7 +111,7 @@ services.AddTransient<MainWindow>();
 | `App.xaml` | アプリ全体のテーマ。CentreCOM 風の青黄赤ストライプ、Button / TextBox / DataGrid / GroupBox / ProgressBar の Style、`BoolToVis`（標準 `BooleanToVisibilityConverter`）と `LicenseStatusToBg`（独自 `LicenseStatusToBackgroundConverter`）の登録 |
 | `Views/MainWindow.xaml` (524 行) | フリート画面。Evidence フォルダ選択 / hostlist 読込 / Baseline PC 設定 / 検索バー / DataGrid / 納品データ出力 / ステータスバー（LINK/ACT 風 LED + ProgressBar） |
 | `Views/MainWindow.xaml.cs` | `OnPcRowDoubleClick` で PC 行ダブルクリックから `PcDetailWindow` を生成、`OnSettingsClick` で `SettingsWindow` 起動 |
-| `Views/PcDetailWindow.xaml` (1,897 行) | 1 PC = 1 ウィンドウ。各セクション（DomainStatus / LocalUsers / FW / Disk / Defender / Memory / PnP / Certificates ...）を `Visibility` バインドで動的表示 |
+| `Views/PcDetailWindow.xaml` (2,081 行) | 1 PC = 1 ウィンドウ。各セクション（DomainStatus / LocalUsers / FW / Disk / Defender / Memory / PnP / Certificates ...）を `Visibility` バインドで動的表示 |
 | `Views/PcDetailWindow.xaml.cs` | `SourceInitialized` で `WorkArea` 内に Width/Height をクランプ、`Loaded` で Top/Left を再クランプ（タイトルバー画面外防止） |
 | `Views/SettingsWindow.xaml` (137 行) | 取得チェック CheckBox 群（MAC / BitLocker / Win/Office License 等）+ ベースラインカテゴリ ItemsControl |
 | `Views/SettingsWindow.xaml.cs` | 閉じるボタンのみ。設定変更は即時反映（OK/Cancel パターン不採用） |
@@ -166,14 +167,15 @@ XAML テーマは Code-Behind ではなく `App.xaml` の `Application.Resources
 
 ### Baseline プラグインチェーン
 
-`BaselineService` は薄いオーケストレータで、実装は `IBaselineComparator` プラグインに分離されている。新カテゴリ追加は **`IBaselineComparator` 実装を 1 つ作って DI 登録** するだけで完結する設計：
+`BaselineService` は薄いオーケストレータで、実装は `IBaselineComparator` プラグインに分離されている。新カテゴリ追加は **`IBaselineComparator` 実装を 1 つ作って DI 登録** するだけで完結する設計（v3.8.1 で 7 件、`InstalledAppsComparator` は `DesktopAppsComparator` と `StoreAppsComparator` に分割済み。共通比較ロジックは `InstalledAppsCompareLogic` static helper として共有）：
 
 | Comparator | CategoryId | 比較対象 |
 |---|---|---|
 | `ExecutionSummaryComparator` | `ExecutionSummary` | `export_history.csv` の `ModuleName × Status` |
 | `SystemInfoComparator` | `SystemInfo` | §01 `OsName / Version / Cpu / Memory` |
 | `ChecklistComparator` | `Checklist` | チェックリスト HTML の `OverallStatus + VerifyItems` |
-| `InstalledAppsComparator` | `InstalledApps` | §11 Desktop + Store アプリの `Name × Version` |
+| `DesktopAppsComparator` | `DesktopApps` | §11 part 1: `11_DesktopApps.csv` の `Name × Version` |
+| `StoreAppsComparator` | `StoreApps` | §11 part 2: `11_StoreApps.csv` の `Name × Version` |
 | `LicenseComparator` | `License` | §21 Windows + §22 Office の license posture |
 | `DomainStatusComparator` | `DomainStatus` | §05 `DomainStatus`（CurrentUser を除く） |
 
@@ -185,7 +187,7 @@ XAML テーマは Code-Behind ではなく `App.xaml` の `Application.Resources
 |---|---|
 | `PcMemoService` | PC ルート直下の `manager_memo.json` を JSON Camel-case で R/W。fabriq 側の `evidence/` サブツリーには触らず、co-located で配置 |
 | `EvidenceCollectorService` | `{outputRoot}/{YYYY_MM_DD_HHmmss}_fabriq_evi/{pcName}_{serial}_{date}/` を作り、`pc_information / auto_capture / bitlocker` をディレクトリ再帰コピー、`checklist.html / export_history.csv` を単独コピー、`manifest_sha256.txt` を生成（manifest 自身は除外） |
-| `ExcelExportService` (2,809 行、ClosedXML) | 30+ シート構成のメイン台帳と、PC 個別詳細 `.xlsx` を `pc_details/` サブディレクトリに分割出力。メイン側 PC 名セルから個別ブックへハイパーリンク。32,767 文字超セルは `[TRUNCATED]` マーカーで安全に切り詰め |
+| `ExcelExportService` (2,916 行、ClosedXML) | 30+ シート構成のメイン台帳と、PC 個別詳細 `.xlsx` を `pc_details/` サブディレクトリに分割出力。メイン側 PC 名セルから個別ブックへハイパーリンク。32,767 文字超セルは `[TRUNCATED]` マーカーで安全に切り詰め |
 
 ## Models 層
 

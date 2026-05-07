@@ -137,10 +137,10 @@ Export-ExecutionHistory
 ### CSV 列
 
 ```csv
-"Timestamp","KanriNo","PCName","ModuleName","Category","Status","Message","WindowsUser","Worker","MediaSerial","SessionID"
+"Timestamp","KanriNo","PCName","ModuleName","Category","Status","Message","WindowsUser","Worker","MediaSerial","SessionID","Verified","Order"
 ```
 
-11 列。詳細は [fabriq__contracts__module_result.md](fabriq__contracts__module_result.md) と [fabriq_evidence_manager__reference__file_format__pc_information.md](fabriq_evidence_manager__reference__file_format__pc_information.md) §「export_history/ ディレクトリ」。
+**13 列**（kernel 3.1.3 で `Order` 列追加、より以前に `Verified` 列追加）。詳細は [fabriq__contracts__module_result.md](fabriq__contracts__module_result.md) と [fabriq_evidence_manager__reference__file_format__pc_information.md](fabriq_evidence_manager__reference__file_format__pc_information.md) §「export_history/ ディレクトリ」。
 
 ---
 

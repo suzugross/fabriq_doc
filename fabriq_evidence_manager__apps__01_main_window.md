@@ -1,7 +1,7 @@
 # フリート画面（MainWindow）
 
 > **対象**: fabriq_evidence_manager / apps / フリート画面
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **ドキュメント更新日**: 2026-05-07
 
 アプリ起動直後に表示されるトップウィンドウ。1 つの evidence ルートディレクトリを開き、その配下の全 PC を 1 行 = 1 PC の `DataGrid` で一覧表示し、hostlist との突合・ベースライン PC との比較・納品データ出力を一括で行うフリート操作画面。
@@ -78,7 +78,7 @@ hostlist 未読み込み状態でも本アプリは動作する（突合判定�
 | `選択PCをベースラインに設定` | `SetBaselinePcCommand` |
 | `クリア` | `ClearBaselineCommand` |
 
-`SetBaselinePc` は `IBaselineService.LoadFromPc(SelectedPc)` を呼び、登録された 6 件の `IBaselineComparator` 全てに対して `CacheBaseline(baselinePc)` を発火する。これにより SystemInfo / Checklist / InstalledApps / License / DomainStatus / ExecutionSummary の各カテゴリで「baseline PC のスナップショット」がメモリに保持され、以降の `CompareAll(targetPc)` で全 PC を baseline と比較できる。
+`SetBaselinePc` は `IBaselineService.LoadFromPc(SelectedPc)` を呼び、登録された **7 件** の `IBaselineComparator` 全てに対して `CacheBaseline(baselinePc)` を発火する。これにより ExecutionSummary / SystemInfo / Checklist / **DesktopApps** / **StoreApps** / License / DomainStatus の各カテゴリで「baseline PC のスナップショット」がメモリに保持され、以降の `CompareAll(targetPc)` で全 PC を baseline と比較できる（v3.8.1 で `InstalledApps` を Desktop / Store に分割）。
 
 選択 PC 未指定で押すと `MessageBox.Show("ベースラインに設定するPCを一覧から選択してください。")`。設定後は `BaselineStatusText="ベースラインPC: {PcName}"` で表示。
 

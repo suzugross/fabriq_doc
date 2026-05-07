@@ -1,5 +1,9 @@
 # fabriq_operator ダッシュボード仕様
 
+> **対象**: fabriq / apps/fabriq_operator
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
 `apps/fabriq_operator/` は fabriq の操作員向けメインダッシュボードです。`fabriq_operator.ps1` は WinForms アセンブリを読み込み、`lib/` 以下の 6 ファイルを dot-source するだけのブートストラップで、機能本体はすべて `lib/*.ps1` 側に分散しています。
 
 ## ファイル構成
@@ -20,7 +24,7 @@
 
 入力項目:
 
-- **Worker** — DataGridView (ID / Name 列、ヘッダクリックで sort 可) で `kernel/csv/worker_list.csv` から選択。一覧外の作業者向けにマニュアル入力テキストボックスも併設し、両者は排他 (片方を入力すると他方をクリア)。
+- **Worker** — DataGridView (ID / Name 列、ヘッダクリックで sort 可) で `kernel/csv/workers.csv` から選択。一覧外の作業者向けにマニュアル入力テキストボックスも併設し、両者は排他 (片方を入力すると他方をクリア)。
 - **Target Host** — DataGridView (AdminID / OldPC / NewPC / IP / Pin)。ライブ検索 (AdminID と NewPCName のみが検索対象。OldPC/IP/Pin は意図的に検索から除外) と件数ラベル "X / Y"。`$env:COMPUTERNAME` と一致する NewPC があれば自動選択し、緑色の「* Auto-detected」ヒントを表示。Row.Tag に host 元オブジェクトを格納することで、sort や filter で行が並び替わっても選択を保持する。
 - **Master Passphrase** — `UseSystemPasswordChar` のテキストボックス。`Test-MasterPassphrase` で検証し、失敗時は SelectAll + Focus で再入力を促す。
 
@@ -34,7 +38,7 @@
 
 `fabriq operator` ウィンドウ (700×560) は **Header + TabControl + StatusBar** の 3 段構成。Header には CentreCOM 風青/黄/赤の 3 色アクセントストライプが入り、右側に `HostName | W: WorkerName` が表示される。
 
-返り値の Action 値: `Quit / ExecuteProfile / FlexProfile / ExecuteModules / NewSession / OpenCsvEditor / WindowsUpdate / Restart / Refabriq / HistoryExport / RegenerateChecklist / Manifesto / SystemLauncher / AppsMode`。これらは `kernel/main.ps1` の switch でディスパッチされる。
+返り値の Action 値: `Quit / ExecuteProfile / FlexProfile / ExecuteModules / NewSession / OpenCsvEditor / OpenEvidence / WindowsUpdate / Restart / Refabriq / HistoryExport / RegenerateChecklist / Manifesto / SystemLauncher / AppsMode / LaunchApp`。これらは `kernel/main.ps1` の switch でディスパッチされる（`OpenEvidence` は Settings タブの Open Folder 経路、`LaunchApp` は FabriqApps ダイアログから個別アプリを起動する経路）。
 
 ### Tab 1: Profiles
 

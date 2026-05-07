@@ -1,7 +1,7 @@
 # SerialNumber 採用ロジック（§10）
 
 > **対象**: fabriq_evidence_manager / reference
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 `10_SerialNumber.txt` のパース処理は本アプリで最も特殊なロジックを持つセクション。「PC 1 台 = SN 1 つ」が実は **5 つの候補ソースから採用 1 つを選ぶ多段判定** であり、フォールバック取得時は監査警告対象になる。本ドキュメントは判定フロー全体を実装ベースで明文化する。

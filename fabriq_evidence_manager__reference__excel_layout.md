@@ -1,10 +1,10 @@
 # Excel 台帳の列構成・色・ハイライト規則（監査用）
 
 > **対象**: fabriq_evidence_manager / reference
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
-`ExcelExportService.cs`（2,809 行、ClosedXML 0.105.0）が生成する **30+ シート構成の納品 Excel 台帳** の完全カタログ。監査用に「どのシートのどの列に何が出るか / 何色のセルが何を意味するか」を一覧化する。
+`ExcelExportService.cs`（2,916 行、ClosedXML 0.105.0）が生成する **30+ シート構成の納品 Excel 台帳** の完全カタログ。監査用に「どのシートのどの列に何が出るか / 何色のセルが何を意味するか」を一覧化する。
 
 ---
 
@@ -143,7 +143,8 @@ main 台帳 `{timestamp}_PC情報一覧表.xlsx` に出るシート。**条件�
 | `ベースライン_実行サマリ` | `BaselineReports[pc].Items.Count > 0` | モジュール 1 件 = 1 行 | `BaselineHeaderBg` 青紫 |
 | `ベースライン_SystemInfo` | `BaselineReports[pc].SystemInfoComparison is not null` | 4 項目 = 4 行 | 同上 |
 | `ベースライン_チェックリスト` | `BaselineReports[pc].ChecklistComparison is not null` | OverallStatus 1 行 + VerifyItems N 行 | 同上 |
-| `ベースライン_アプリ` | `BaselineReports[pc].InstalledAppsComparison is not null` | 集計 1 行 + 差分 N 行 | 同上 |
+| `ベースライン_アプリ_Desktop` | `BaselineReports[pc].DesktopAppsComparison is not null` | 集計 1 行 + 差分 N 行 | 同上 |
+| `ベースライン_アプリ_Store` | `BaselineReports[pc].StoreAppsComparison is not null` | 集計 1 行 + 差分 N 行 | 同上 |
 | `ベースライン_ライセンス` | `BaselineReports[pc].LicenseComparison is not null` | 最大 8 項目 = 8 行 | 同上 |
 | `ベースライン_ドメイン` | `BaselineReports[pc].DomainStatusComparison is not null` | 7 項目 = 7 行 | 同上 |
 | `ユーザー・グループ` | `LocalUsers.Count > 0 \|\| LocalGroups.Count > 0` | ユーザー / グループ / メンバー 種別 1 件 = 1 行 | `UserGroupHeaderBg` ティール |
@@ -214,13 +215,13 @@ PC 名列のハイパーリンクは pc_details/ サブブックがあるとき�
 
 ---
 
-## ベースライン突合シート 6 種
+## ベースライン突合シート 7 種
 
-`BaselineReports : Dictionary<PcEvidence, BaselineComparisonReport>` を入力として、6 サブカテゴリそれぞれが独立シートに展開される。**pc_details/ 側のみ**（main には出ない）。
+`BaselineReports : Dictionary<PcEvidence, BaselineComparisonReport>` を入力として、7 サブカテゴリそれぞれが独立シートに展開される（v3.8.1 で従来の 1 アプリシートが Desktop / Store に分離）。**pc_details/ 側のみ**（main には出ない）。
 
 ### 共通の判定セル `ApplyVerificationStatusToCell`
 
-`VerificationStatus` を Excel セルに反映する共通ヘルパ（SystemInfo / Checklist VerifyItems / InstalledApps / License / DomainStatus 5 シートで共用）：
+`VerificationStatus` を Excel セルに反映する共通ヘルパ（SystemInfo / Checklist VerifyItems / DesktopApps / StoreApps / License / DomainStatus 6 シートで共用）：
 
 | Status | 表示テキスト | 着色 | 行全体着色 |
 |---|---|---|---|
@@ -264,7 +265,9 @@ PC 名列のハイパーリンクは pc_details/ サブブックがあるとき�
 
 OverallStatus 行 + 各 VerifyItem 行で計 N+1 行/PC。OverallStatusMatch は `OK / NG` 表示で `ApplyVerificationStatusToCell` ではなく独自着色（行全体 `MismatchBg`）。
 
-### `ベースライン_アプリ`（5 列）
+### `ベースライン_アプリ_Desktop` / `ベースライン_アプリ_Store`（各 5 列）
+
+v3.8.1 で従来の `ベースライン_アプリ` 1 シートが Desktop / Store の 2 シートに分離された。Desktop は `11_DesktopApps.csv` 由来の `BaselineReports[pc].DesktopAppsComparison`、Store は `11_StoreApps.csv` 由来の `BaselineReports[pc].StoreAppsComparison` を入力とする（型はともに `InstalledAppsComparisonResult`、出力レイアウトも同一）。
 
 PC ごとに「集計行 1 行 + 差分行 N 行」の 2 段構成：
 

@@ -1,7 +1,7 @@
 # 設定ダイアログ（SettingsWindow）
 
 > **対象**: fabriq_evidence_manager / apps / 設定ダイアログ
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **ドキュメント更新日**: 2026-05-07
 
 メインウィンドウ右上の `⚙ 設定` ボタンから起動する modeless ダイアログ。`EvidenceCheckOptions`（取得チェック）と `IBaselineService.EnabledCategoryIds`（ベースライン突合カテゴリ）の 2 軸を変更する。OK/Cancel パターンではなく **変更は即時反映** の方針：チェックボックスを 1 つ切り替えるたびに全 PC が再評価される。
@@ -128,16 +128,17 @@ public SettingsViewModel CreateSettingsViewModel()
 
 ## セクション 2: ベースライン突合カテゴリ
 
-`IBaselineService.AvailableCategories`（6 件）に対する `ItemsControl` 表示。各カテゴリの `IBaselineComparator.IsEnabledByDefault=true` を初期値として `BaselineCategoryOption.IsEnabled` を持ち、チェック ON/OFF を `IBaselineService.SetEnabledCategoryIds(...)` に反映する。
+`IBaselineService.AvailableCategories`（**7 件**、v3.8.1 で `InstalledApps` を `DesktopApps` + `StoreApps` に分割）に対する `ItemsControl` 表示。各カテゴリの `IBaselineComparator.IsEnabledByDefault=true` を初期値として `BaselineCategoryOption.IsEnabled` を持ち、チェック ON/OFF を `IBaselineService.SetEnabledCategoryIds(...)` に反映する。
 
-### カテゴリ一覧（6 件）
+### カテゴリ一覧（7 件）
 
 | 表示名 | CategoryId | 比較対象 |
 |---|---|---|
 | 実行サマリ | `ExecutionSummary` | `export_history.csv` の `ModuleName × Status` |
 | SystemInfo | `SystemInfo` | `01_SystemInfo.txt` の OS名 / OSバージョン / CPU / メモリ |
 | チェックリスト | `Checklist` | チェックリスト HTML の `OverallStatus + VerifyItems` |
-| インストール済みアプリ | `InstalledApps` | §11 Desktop + Store アプリの `Name × Version` |
+| デスクトップアプリ | `DesktopApps` | §11 part 1: `11_DesktopApps.csv` の `Name × Version`（v3.8.1 で分割） |
+| ストアアプリ | `StoreApps` | §11 part 2: `11_StoreApps.csv` の `Name × Version`（v3.8.1 で分割） |
 | ライセンス | `License` | §21 Windows + §22 Office の license posture（typed model 直比較） |
 | ドメイン参加状態 | `DomainStatus` | §05 `DomainStatus`（CurrentUser を除く 7 項目） |
 
@@ -147,7 +148,8 @@ public SettingsViewModel CreateSettingsViewModel()
 services.AddSingleton<IBaselineComparator, ExecutionSummaryComparator>();
 services.AddSingleton<IBaselineComparator, SystemInfoComparator>();
 services.AddSingleton<IBaselineComparator, ChecklistComparator>();
-services.AddSingleton<IBaselineComparator, InstalledAppsComparator>();
+services.AddSingleton<IBaselineComparator, DesktopAppsComparator>();
+services.AddSingleton<IBaselineComparator, StoreAppsComparator>();
 services.AddSingleton<IBaselineComparator, LicenseComparator>();
 services.AddSingleton<IBaselineComparator, DomainStatusComparator>();
 ```

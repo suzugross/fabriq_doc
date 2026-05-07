@@ -85,13 +85,13 @@ kernel 3.1.5 以降の Flex は AutoPilot トグルを **持たない**。`[Run]
 
 | 列 | 幅 | 内容 |
 |---|---|---|
-| `Checked` | 30 | 選択チェックボックス。**既定すべて未チェック**（白紙からピック） |
+| `Checked` | 36 | 選択チェックボックス。**既定すべて未チェック**（白紙からピック） |
 | `#` | Order の整数値 |  |
 | `Group` | （`Group` 列がある場合のみ表示） |  |
 | `Module` | MenuName |  |
 | `Status` | 90 | Pending / Success / Partial / Error / Skipped / Cancelled。CellFormatting で **背景色付きバッジ** 描画 |
 | `Verified` | 70 | `-` / `PASS` / `FAIL`。PASS=緑バッジ、FAIL=赤バッジ |
-| `Run` | 60 | 行内 `[Run]` ボタン（kernel 3.1.8+。footer の "Run This: M" を置き換え） |
+| `Run` | 56 | 行内 `[Run]` ボタン（kernel 3.1.8+。footer の "Run This: M" を置き換え） |
 
 ### Status バッジの色
 

@@ -1,6 +1,12 @@
-# common.ps1 関数インデックス（90+ 関数）
+# common.ps1 + main.ps1 関数インデックス（100 関数）
 
-`kernel/common.ps1` で定義されている全関数の一覧。**公開 API**（KERNEL_API.md §1〜§5 で宣言）と**内部実装**（PATCH バージョンでも変更されうる）を区別して記載。
+> **対象**: fabriq / kernel
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
+`kernel/common.ps1`（91 関数）+ `kernel/main.ps1`（9 関数）で定義されている全関数の一覧。**公開 API**（KERNEL_API.md §1〜§5 で宣言）と**内部実装**（PATCH バージョンでも変更されうる）を区別して記載。
+
+> KERNEL_API.md §9（更新オーバーレイ契約）/ §10（Evidence Manifest 契約）は外部ツール向けの **公開契約** であり、本索引の対象（モジュール向け関数 API）とは別レイヤ。本ファイルでは扱わない（→ それぞれ [fabriq__contracts__overlay_contract.md](fabriq__contracts__overlay_contract.md) / [fabriq__contracts__evidence_manifest_contract.md](fabriq__contracts__evidence_manifest_contract.md)）。
 
 ---
 
@@ -209,11 +215,11 @@
 
 ## 関数数の総計
 
-- **公開 API（モジュール依存可）**: 約 **18 関数**
-- **内部実装（PATCH で変更されうる）**: 約 **75 関数**
-- **合計**: 約 **93 関数**（common.ps1 + main.ps1）
+- **公開 API（モジュール依存可）**: **16 関数**
+- **内部実装（PATCH で変更されうる）**: **84 関数**
+- **合計**: **100 関数**（common.ps1 91 + main.ps1 9）
 
-公開 API は全体の **20% 弱**。残り 80% は内部実装で、kernel 開発者の自由度を確保する設計。
+公開 API は全体の **16%**。残り 84% は内部実装で、kernel 開発者の自由度を確保する設計。
 
 ---
 

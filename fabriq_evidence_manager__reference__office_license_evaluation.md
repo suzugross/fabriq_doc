@@ -1,7 +1,7 @@
 # Office ライセンス評価ロジック（§22）
 
 > **対象**: fabriq_evidence_manager / reference
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 `§22 Office License` は本アプリで最も判定が複雑なセクション。fabriq 側 evidence_config の **v1.5.0 で manifest §22 verdict + INTERPRETATION ブロックが追加** され、本アプリは**新旧両 evidence を扱うため二系統の判定経路を持つ**。本ドキュメントは判定の権威ソース選択・5 状態の `OfficeLicenseEvaluation` 列挙・v1.5+ と v1.4 の違いを実装ベースで明文化する。

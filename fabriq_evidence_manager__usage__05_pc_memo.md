@@ -1,7 +1,7 @@
 # 管理者メモ（manager_memo.json）
 
 > **対象**: fabriq_evidence_manager / usage
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **ドキュメント更新日**: 2026-05-07
 
 PC 単位の自由記述メモ機能。fabriq 側の evidence サブツリーには触らず、**PC ルートディレクトリ直下の `manager_memo.json` ファイル** に永続化される。本アプリが evidence ツリー外に書き込む唯一の成果物。

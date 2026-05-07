@@ -1,7 +1,7 @@
 # manifest スキーマ消費契約（fabriq_evidence_manager 側）
 
 > **対象**: fabriq_evidence_manager / contracts
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`、最新コミット `45eae22` (2026-05-07)）
 > **対応 producer 契約**: fabriq kernel `EVIDENCE_MANIFEST.md schemaVersion=1`（kernel 2.2.2+ / evidence_config 1.3.0+）
 > **ドキュメント更新日**: 2026-05-07
 

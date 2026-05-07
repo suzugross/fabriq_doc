@@ -1,5 +1,9 @@
 # dev/ — テンプレート & 開発ツーリング
 
+> **対象**: fabriq / dev
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
 `e:/fabriq/dev/` は fabriq の **開発支援 / メンテナンス / 配布補助**を担うディレクトリです。実行時には呼ばれず、開発者 (= Claude を含む) が手動で起動するか、release 手順の一部として使われます。
 
 ## 構成
@@ -15,9 +19,22 @@ dev/
 │   └── REQUIRES_KERNEL             2.0.0 (現行 baseline)
 ├── framework_overlay_rules.json    contracts に詳述。配布 / 上書きの単一ソース
 ├── build_framework_patch.ps1       framework patch 生成
+├── build_brochure_flat.ps1         fabriq brochure 素材を flat layout で集約 (E:\tmp\fabriq_brochure_materials\99_old\ → Desktop\fabriq_brochure_flat\)
 ├── seed_module_versions.ps1        全モジュールに VERSION/REQUIRES_KERNEL を baseline 打刻
 ├── check_version.ps1               kernel 版表記の整合性検証
 ├── verify_comments_only.ps1        コメントのみ変更の証明
+├── cert_config_test/               cert_config モジュール検証用テスト証明書 fixtures
+│   ├── generate_test_certs.ps1
+│   ├── cert_list_test.csv
+│   ├── test_root_ca.cer
+│   └── *.pfx (test_client / test_autoroute_2tier / test_autoroute_3tier / YOURPC01_TEST)
+├── odt_config/                     Office Deployment Tool ローカル素材 (odt_config モジュールの参照ペア)
+│   ├── 01_Download.bat
+│   ├── configuration.xml
+│   ├── odt_download.ps1
+│   ├── odt_install.ps1
+│   ├── setup.exe
+│   └── Office/                     ODT setup.exe が download した Office インストーラ
 ├── launcher/                       Fabriq.exe / Fabriq_IOS.exe の C# ソース
 │   ├── Launcher.cs / Launcher_IOS.cs
 │   ├── app.manifest / app_ios.manifest

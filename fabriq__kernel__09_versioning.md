@@ -1,5 +1,9 @@
 # バージョン管理（カーネル + モジュール SemVer + コンパチマトリクス）
 
+> **対象**: fabriq / kernel + module SemVer 運用
+> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
+> **ドキュメント更新日**: 2026-05-07
+
 fabriq は **カーネル API とモジュールを独立に SemVer 管理** する設計。Claude（実装担当）の手順制御によって整合性を担保する（ランタイムチェックは行わない）。
 
 ---
@@ -126,7 +130,7 @@ pwsh ./dev/seed_module_versions.ps1 -DryRun
 - KERNEL_API.md の更新 : あり / なし
 - touched modules :
     <module_name> : X.Y.Z → X.Y.Z+N（種別 / 理由）
-- untouched modules : N/74（一切触っていないモジュール数）
+- untouched modules : N/75（一切触っていないモジュール数 = standard 60 + extended 15）
 - 配備方針 : kernel/ フォルダ差し替えのみで OK / モジュール X の更新も必要 / 全件再配布必要
 ```
 
@@ -186,4 +190,4 @@ dev/check_version.ps1
 - `KERNEL_VERSION`: **3.2.2**
 - `dev/template/VERSION`: `0.1.0`（次の新規モジュール開始版）
 - `dev/template/REQUIRES_KERNEL`: 現行カーネルに同期
-- 標準モジュール 60 件 / 拡張モジュール 14 件すべて baseline `1.0.0` / `2.0.0`（一部例外: pianist `1.6.0`, evidence_config `1.3.0`+, etc.）
+- 標準モジュール 60 件 / 拡張モジュール 15 件すべて baseline `1.0.0` / `2.0.0`（一部例外: pianist `1.6.0`, evidence_config `1.6.0`, etc.）

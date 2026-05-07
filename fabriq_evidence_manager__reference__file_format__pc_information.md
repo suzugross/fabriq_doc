@@ -1,7 +1,7 @@
 # pc_information ファイル形式リファレンス
 
 > **対象**: fabriq_evidence_manager / reference
-> **対象バージョン**: 3.8.0（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>`）
+> **対象バージョン**: 3.8.1（取得元: `E:\fabriq_evidence_manager\FabriqEvidenceManager\FabriqEvidenceManager.csproj` `<Version>` / commit `45eae22`）
 > **対応 producer 契約**: fabriq kernel 3.0.0+ / evidence_config 1.6.0+（schemaVersion=1）
 > **ドキュメント更新日**: 2026-05-07
 
@@ -330,7 +330,7 @@ Win32_ComputerSystemProduct.UUID                 : AAAA-BBBB-CCCC-DDDD-EEEE [VAL
 
 `InstallDate` 列は無し（Store アプリは取得不能）。`Source = InstalledAppSource.Store`。
 
-両ファイルは on-demand parse（`InstalledAppsComparator` 専用）。
+両ファイルは on-demand parse（v3.8.1 で per-source 分離された `DesktopAppsComparator` / `StoreAppsComparator` 専用、共通比較ロジックは `InstalledAppsCompareLogic` 静的ヘルパ）。
 
 ---
 
