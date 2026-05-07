@@ -152,9 +152,9 @@ fabriq には「**Manifeste du Surkitinisme**」という演出文化がある�
 
 ### art_sentences.txt
 
-- 中身: 演出用の 1 行テキスト集（1 sentence per line）
-- 表示: monitor が定期的にランダム選択して大文字で表示
-- 中身は内輪文化を反映（例: "DEKITINISME"）
+- 中身: アンドレ・ブルトン『シュルレアリスム宣言』をキッティング文脈にパロディ翻案した日本語の散文 150 行（1 行 = 1 段落、各段落が長文）。fabriq の演出哲学キーワード「**シュルキティニスム / Surkitinisme（超展開主義）**」がこの中で定義される
+- 描画担当: `kernel/ps1/art_display.ps1`（status_monitor から `-SentenceFilePath` 引数で渡されつつ、別プロセスとして並走するタイピング演出ウィンドウ）。`Select-NextSentence` でランダム選択 → `ART_BURST_SPEED` (8ms/char) または `ART_IDLE_SPEED` (35ms/char) で 1 文字ずつタイピング描画。**大文字化はしない**（原文の日本語をそのまま表示）
+- pulse counter（`art_pulse.txt`）の増分でタイピング速度がバースト切替する仕組み。モジュール実行が活発なとき高速、idle 時は低速
 
 ### silence.flag
 
