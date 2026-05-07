@@ -14,7 +14,7 @@
 |---|---|---|---|
 | fabriq | `fabriq__` | 106 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
 | fabriq_evidence_manager | `fabriq_evidence_manager__` | 22 | `FabriqEvidenceManager.csproj <Version>` = 3.8.1 |
-| fabriq_studio | `fabriq_studio__` | 15 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
+| fabriq_studio | `fabriq_studio__` | 18 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
 | tonebender | `tonebender__` | 0 (未着手) | git short hash |
 | tonebender-controller | `tonebender_controller__` | 0 (未着手) | git short hash |
 
@@ -201,7 +201,7 @@
 
 ---
 
-## fabriq_studio (15 files)
+## fabriq_studio (18 files)
 
 ### overview (1)
 
@@ -212,12 +212,15 @@
 - `fabriq_studio__architecture__01_layers.md`
 - `fabriq_studio__architecture__02_workspace.md`
 
-### apps (4)
+### apps (7)
 
 - `fabriq_studio__apps__01_main_pages.md`
 - `fabriq_studio__apps__02_pianist_profile_editor.md`
 - `fabriq_studio__apps__03_registry_collection.md`
-- `fabriq_studio__apps__04_other_tools.md`
+- [fabriq_studio__apps__04_script_looper_editor.md](fabriq_studio__apps__04_script_looper_editor.md)
+- [fabriq_studio__apps__05_printer_driver_detector.md](fabriq_studio__apps__05_printer_driver_detector.md)
+- [fabriq_studio__apps__06_fabriq_backup.md](fabriq_studio__apps__06_fabriq_backup.md)
+- [fabriq_studio__apps__07_fabriq_update.md](fabriq_studio__apps__07_fabriq_update.md)
 
 ### contracts (1)
 
