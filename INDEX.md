@@ -12,7 +12,7 @@
 
 | プロジェクト | 接頭辞 | ファイル数 | 対象バージョン情報源 |
 |---|---|---|---|
-| fabriq | `fabriq__` | 101 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
+| fabriq | `fabriq__` | 106 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
 | fabriq_evidence_manager | `fabriq_evidence_manager__` | 22 | `FabriqEvidenceManager.csproj <Version>` = 3.8.1 |
 | fabriq_studio | `fabriq_studio__` | 9 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
 | tonebender | `tonebender__` | 0 (未着手) | git short hash |
@@ -20,11 +20,19 @@
 
 ---
 
-## fabriq (101 files)
+## fabriq (106 files)
 
 ### overview (1)
 
 - [fabriq__overview__readme.md](fabriq__overview__readme.md)
+
+### usage (5)
+
+- [fabriq__usage__01_install_and_first_boot.md](fabriq__usage__01_install_and_first_boot.md)
+- [fabriq__usage__02_session_setup.md](fabriq__usage__02_session_setup.md)
+- [fabriq__usage__03_profile_execution_linear.md](fabriq__usage__03_profile_execution_linear.md)
+- [fabriq__usage__04_flexprofile_dashboard.md](fabriq__usage__04_flexprofile_dashboard.md)
+- [fabriq__usage__05_evidence_and_quick_actions.md](fabriq__usage__05_evidence_and_quick_actions.md)
 
 ### apps (6)
 
