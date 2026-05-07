@@ -14,7 +14,7 @@
 |---|---|---|---|
 | fabriq | `fabriq__` | 106 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
 | fabriq_evidence_manager | `fabriq_evidence_manager__` | 22 | `FabriqEvidenceManager.csproj <Version>` = 3.8.1 |
-| fabriq_studio | `fabriq_studio__` | 9 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
+| fabriq_studio | `fabriq_studio__` | 15 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
 | tonebender | `tonebender__` | 0 (未着手) | git short hash |
 | tonebender-controller | `tonebender_controller__` | 0 (未着手) | git short hash |
 
@@ -201,7 +201,7 @@
 
 ---
 
-## fabriq_studio (9 files)
+## fabriq_studio (15 files)
 
 ### overview (1)
 
@@ -226,6 +226,15 @@
 ### usage (1)
 
 - `fabriq_studio__usage__01_workspace_setup.md`
+
+### reference (6)
+
+- [fabriq_studio__reference__hostlist_csv_schema.md](fabriq_studio__reference__hostlist_csv_schema.md)
+- [fabriq_studio__reference__pianist_profile_schema.md](fabriq_studio__reference__pianist_profile_schema.md)
+- [fabriq_studio__reference__registry_catalog.md](fabriq_studio__reference__registry_catalog.md)
+- [fabriq_studio__reference__services_catalog.md](fabriq_studio__reference__services_catalog.md)
+- [fabriq_studio__reference__models_catalog.md](fabriq_studio__reference__models_catalog.md)
+- [fabriq_studio__reference__csv_schemas.md](fabriq_studio__reference__csv_schemas.md)
 
 ---
 
