@@ -1,6 +1,6 @@
 # Fabriq Series — Unified Documentation Index
 
-**Last updated**: 2026-05-06
+**Last updated**: 2026-05-07
 **Layout**: Flat. すべての md は本リポジトリのトップ直下に配置されている（`<project>__<category>__<name>.md` 形式）。
 **LM 投入**: NotebookLM 等にこのフォルダ全体を投入すれば、ファイル名のプレフィックスでプロジェクト判別が完結する。
 
@@ -13,7 +13,7 @@
 | プロジェクト | 接頭辞 | ファイル数 | 対象バージョン情報源 |
 |---|---|---|---|
 | fabriq | `fabriq__` | 100 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
-| fabriq_evidence_manager | `fabriq_evidence_manager__` | 0 (未着手) | `FabriqEvidenceManager.csproj <Version>` = 3.8.0 |
+| fabriq_evidence_manager | `fabriq_evidence_manager__` | 22 | `FabriqEvidenceManager.csproj <Version>` = 3.8.1 |
 | fabriq_studio | `fabriq_studio__` | 9 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
 | tonebender | `tonebender__` | 0 (未着手) | git short hash |
 | tonebender-controller | `tonebender_controller__` | 0 (未着手) | git short hash |
@@ -139,17 +139,53 @@
 
 ---
 
-## fabriq_evidence_manager (0 files)
+## fabriq_evidence_manager (22 files)
 
-未着手。`fabriq_evidence_manager__` プレフィックスで以下のような構成を予定（[CLAUDE.md](CLAUDE.md) §推奨初期構成 参照）。
+### overview (1)
 
-- `fabriq_evidence_manager__overview__readme.md`
-- `fabriq_evidence_manager__architecture__01_layers.md`
-- `fabriq_evidence_manager__architecture__02_evidence_input.md`
-- `fabriq_evidence_manager__usage__01_import.md`
-- `fabriq_evidence_manager__usage__02_export.md`
-- `fabriq_evidence_manager__reference__csv_schema.md`
-- `fabriq_evidence_manager__changelog__history.md`
+- [fabriq_evidence_manager__overview__readme.md](fabriq_evidence_manager__overview__readme.md)
+
+### architecture (3)
+
+- [fabriq_evidence_manager__architecture__01_layers.md](fabriq_evidence_manager__architecture__01_layers.md)
+- [fabriq_evidence_manager__architecture__02_evidence_input.md](fabriq_evidence_manager__architecture__02_evidence_input.md)
+- [fabriq_evidence_manager__architecture__03_warning_caution_model.md](fabriq_evidence_manager__architecture__03_warning_caution_model.md)
+
+### contracts (2)
+
+- [fabriq_evidence_manager__contracts__manifest_schema.md](fabriq_evidence_manager__contracts__manifest_schema.md)
+- [fabriq_evidence_manager__contracts__section_dispatch.md](fabriq_evidence_manager__contracts__section_dispatch.md)
+
+### apps (3)
+
+- [fabriq_evidence_manager__apps__01_main_window.md](fabriq_evidence_manager__apps__01_main_window.md)
+- [fabriq_evidence_manager__apps__02_pc_detail_window.md](fabriq_evidence_manager__apps__02_pc_detail_window.md)
+- [fabriq_evidence_manager__apps__03_settings_window.md](fabriq_evidence_manager__apps__03_settings_window.md)
+
+### usage (5)
+
+- [fabriq_evidence_manager__usage__01_import.md](fabriq_evidence_manager__usage__01_import.md)
+- [fabriq_evidence_manager__usage__02_hostlist_verification.md](fabriq_evidence_manager__usage__02_hostlist_verification.md)
+- [fabriq_evidence_manager__usage__03_baseline.md](fabriq_evidence_manager__usage__03_baseline.md)
+- [fabriq_evidence_manager__usage__04_export_delivery.md](fabriq_evidence_manager__usage__04_export_delivery.md)
+- [fabriq_evidence_manager__usage__05_pc_memo.md](fabriq_evidence_manager__usage__05_pc_memo.md)
+
+### reference (6)
+
+- [fabriq_evidence_manager__reference__excel_layout.md](fabriq_evidence_manager__reference__excel_layout.md)
+- [fabriq_evidence_manager__reference__file_format__pc_information.md](fabriq_evidence_manager__reference__file_format__pc_information.md)
+- [fabriq_evidence_manager__reference__hostlist_csv_schema.md](fabriq_evidence_manager__reference__hostlist_csv_schema.md)
+- [fabriq_evidence_manager__reference__model_catalog.md](fabriq_evidence_manager__reference__model_catalog.md)
+- [fabriq_evidence_manager__reference__office_license_evaluation.md](fabriq_evidence_manager__reference__office_license_evaluation.md)
+- [fabriq_evidence_manager__reference__serial_number_logic.md](fabriq_evidence_manager__reference__serial_number_logic.md)
+
+### troubleshooting (1)
+
+- [fabriq_evidence_manager__troubleshooting__manifest_errors.md](fabriq_evidence_manager__troubleshooting__manifest_errors.md)
+
+### changelog (1)
+
+- [fabriq_evidence_manager__changelog__history.md](fabriq_evidence_manager__changelog__history.md)
 
 ---
 
