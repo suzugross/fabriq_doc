@@ -12,15 +12,15 @@
 
 | プロジェクト | 接頭辞 | ファイル数 | 対象バージョン情報源 |
 |---|---|---|---|
-| fabriq | `fabriq__` | 108 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
+| fabriq | `fabriq__` | 109 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
 | fabriq_evidence_manager | `fabriq_evidence_manager__` | 22 | `FabriqEvidenceManager.csproj <Version>` = 3.8.1 |
-| fabriq_studio | `fabriq_studio__` | 18 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
+| fabriq_studio | `fabriq_studio__` | 19 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
 | tonebender | `tonebender__` | 0 (未着手) | git short hash |
 | tonebender-controller | `tonebender_controller__` | 0 (未着手) | git short hash |
 
 ---
 
-## fabriq (108 files)
+## fabriq (109 files)
 
 ### overview (1)
 
@@ -154,6 +154,10 @@
 - [fabriq__troubleshooting__module_failures.md](fabriq__troubleshooting__module_failures.md)
 - [fabriq__troubleshooting__resume_and_state.md](fabriq__troubleshooting__resume_and_state.md)
 
+### changelog (1)
+
+- [fabriq__changelog__history.md](fabriq__changelog__history.md)
+
 ---
 
 ## fabriq_evidence_manager (22 files)
@@ -206,7 +210,7 @@
 
 ---
 
-## fabriq_studio (18 files)
+## fabriq_studio (19 files)
 
 ### overview (1)
 
@@ -243,6 +247,10 @@
 - [fabriq_studio__reference__services_catalog.md](fabriq_studio__reference__services_catalog.md)
 - [fabriq_studio__reference__models_catalog.md](fabriq_studio__reference__models_catalog.md)
 - [fabriq_studio__reference__csv_schemas.md](fabriq_studio__reference__csv_schemas.md)
+
+### changelog (1)
+
+- [fabriq_studio__changelog__history.md](fabriq_studio__changelog__history.md)
 
 ---
 
