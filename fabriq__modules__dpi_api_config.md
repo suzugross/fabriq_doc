@@ -1,5 +1,9 @@
 # dpi_api_config (Standard)
 
+> **対象**: fabriq / modules/standard/dpi_api_config
+> **対象バージョン**: モジュール 1.0.0 / Kernel 3.2.2（取得元: `E:\fabriq\modules\standard\dpi_api_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、最新コミット c7609d3 (2026-04-24)）
+> **ドキュメント更新日**: 2026-05-07
+
 **カテゴリ**: Display
 **メニュー名**: DPI Scaling Config (Live)
 **VERSION**: 1.0.0  / **REQUIRES_KERNEL**: 2.0.0
@@ -7,7 +11,7 @@
 **サブスクリプト**: なし
 
 ## 目的
-ディスプレイの **DPI スケーリング（拡大率）を Windows API 経由で即時反映** させるモジュールです。レジストリ書き込み + サインアウト方式（`resolution_api_config` 系統）と異なり、`NativeDpiHelper::SetDpi` を呼び出すライブ方式のため、再起動／サインアウトなしで即座に変更が反映されるのが特徴です。「Live」というメニュー名はこのライブ反映を表しています。複数モニター環境では `MonitorIndex`（0=プライマリ）で個別に指定できます。
+ディスプレイの **DPI スケーリング（拡大率）を Windows API 経由で即時反映** させるモジュールです。レジストリ書き込み + サインアウト方式の `dpi_config`（Extended、HKCU と Default プロファイル ntuser.dat へ書き込み）と異なり、`NativeDpiHelper::SetDpi`（DisplayConfig API）を呼び出すライブ方式のため、再起動／サインアウトなしで即座に変更が反映されるのが特徴です。「Live」というメニュー名はこのライブ反映を表しています。複数モニター環境では `MonitorIndex`（0=プライマリ）で個別に指定できます。
 
 ## 入力 (CSV)
 `dpi_list.csv` の主な列:
@@ -25,7 +29,7 @@
 
 ## 注意点・運用メモ
 - ノート PC の高 DPI 表示に合わせて 150% を設定するなど、現場では頻出のオペレーション
-- レジストリ書き込み方式（`resolution_api_config` の dpi_reg 系）と違い、再起動／サインアウト不要
+- レジストリ書き込み方式の `dpi_config`（Extended、HKCU + Default ntuser.dat 書き込み）と違い、再起動／サインアウト不要
 - 環境変数は使用しない
 - Windows のサポート刻みから外れた `ScalePercent` を指定すると API 側で丸め or 失敗する可能性あり
 

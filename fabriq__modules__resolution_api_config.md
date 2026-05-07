@@ -1,5 +1,9 @@
 # resolution_api_config (Standard)
 
+> **対象**: fabriq / modules/standard/resolution_api_config
+> **対象バージョン**: モジュール 1.0.0 / Kernel 3.2.2（取得元: `E:\fabriq\modules\standard\resolution_api_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、最新コミット c7609d3 (2026-04-24)）
+> **ドキュメント更新日**: 2026-05-07
+
 **カテゴリ**: Display
 **メニュー名**: Resolution Config (Live)
 **VERSION**: 1.0.0  / **REQUIRES_KERNEL**: 2.0.0
@@ -8,9 +12,12 @@
 
 ## 目的
 ディスプレイ解像度を Win32 API（`ChangeDisplaySettings` / `EnumDisplaySettings`）経由で
-即時変更するモジュール。レジストリ書き込みと違って再起動なしに反映される（API が
-`DISP_CHANGE_RESTART` を返した場合のみ警告）。CSV に複数候補を書いておけるが、通常運用は
-Enabled=1 を 1 行にしておく形（解像度の連続切替は副作用が大きいため）。
+即時変更するモジュール。`CDS_UPDATEREGISTRY` フラグ付きで呼び出すため、API による動的
+反映と同時にユーザープロファイル側レジストリ（HKCU 配下）へ永続化される（HKLM へ直接
+書き込んで再起動を要求する旧来手法ではない。通常は再起動不要で、API が
+`DISP_CHANGE_RESTART` を返した場合のみ例外的に再起動警告を出す）。CSV に複数候補を
+書いておけるが、通常運用は Enabled=1 を 1 行にしておく形（解像度の連続切替は副作用が
+大きいため）。
 
 ## 入力 (CSV)
 `resolution_list.csv`
