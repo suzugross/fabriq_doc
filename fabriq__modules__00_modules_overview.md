@@ -1,14 +1,26 @@
-# モジュール全体図 — 標準 60 / 拡張 15
+# モジュール全体図 — 標準 60 / 拡張 16
 
-> **対象**: fabriq / modules（standard 60 + extended 15 = 75 件）
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象**: fabriq / modules（standard 60 + extended 16 = 76 件）
+> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `fed181a`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-10）
+> **ドキュメント更新日**: 2026-05-10
 
 fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging されている。各モジュールは独立 SemVer で配備され、要求カーネル版を `REQUIRES_KERNEL` で宣言する。
 
 カテゴリは `kernel/csv/categories.csv` で定義され、ダッシュボードのグルーピング順序を決定する。
 
 詳細な per-module 解説は本ディレクトリの `<name>.md` 各ファイルを参照。
+
+---
+
+## モジュール構成の変動（2026-05-08〜05-10、kernel 3.2.5 期）
+
+| 区分 | モジュール | 概要 |
+|---|---|---|
+| **新規** | `modules/standard/windows_feature_config` v0.1.0 | Windows Optional Feature の online enable/disable（DISM ラッパ） |
+| **新規** | `modules/extended/server_feature_config` v0.1.0 | Windows Server の役割・機能の online install（ServerManager ラッパ） |
+| **retire** | `modules/standard/bloatware_export` | Module としては撤去。export 機能は `apps/bloatware_exporter` に統合（出力 CSV は `bloatware_remove` のスキーマと整合） |
+
+これで標準 60（うち 1 つ retire / 1 つ新規 → 60 件維持）+ 拡張 16（+1）= **76 件** となった。
 
 ---
 
@@ -73,7 +85,6 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 | `app_config` | EXE/MSI/MSU インストール（共有 CSV） | 不可（複雑） |
 | `winget_install` | winget update / install / upgrade trio | なし（winget 自身で完結） |
 | `bloatware_remove` | UWP / Provisioned / Capability 削除 | あり |
-| `bloatware_export` | 現状の bloatware 一覧 export | N/A（read-only） |
 | `storeapp_config` | StoreApp 一括削除 | あり |
 | `odt_config` | ODT で Office インストール | なし |
 | `browser_addon_config` | Edge / Chrome 拡張機能 ADMX 経由 | あり |
@@ -115,6 +126,7 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 | `sysprep_config` | unattend.xml + SetupComplete.cmd 生成 | 除外 |
 | `time_sync_config` | w32tm NTP 設定 + sync source verify | あり（retry 込） |
 | `volume_config` | Core Audio API でマスターボリューム | あり |
+| `windows_feature_config` | Windows Optional Feature の online enable/disable（DISM ラッパ）| あり（State 読み戻し） |
 
 ### Registry
 
@@ -151,7 +163,7 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 
 ---
 
-## Extended（15 件）
+## Extended（16 件）
 
 ### Network
 
@@ -193,6 +205,7 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 |---|---|---|
 | `azure_ad_join_check` | dsregcmd 出力解析（read-only、script_looper retry 設計）| N/A |
 | `reg_template` | レジストリ template backup / import pair（汎用テンプレ）| なし |
+| `server_feature_config` | Windows Server の役割・機能の online install（ServerManager ラッパ。Client SKU で Skipped）| あり（InstallState 読み戻し） |
 
 ### Scripts
 
@@ -247,10 +260,10 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 | Security | 7 | 0 |
 | User Management | 2 | 2 |
 | Printer | 2 | 0 |
-| Applications | 8 | 0 |
+| Applications | 7 | 0 |
 | Power | 1 | 0 |
 | Maintenance | 7 | 2 |
-| System | 14 | 2 |
+| System | 15 | 3 |
 | Registry | 2 | 0 |
 | Scripts | 2 | 1 |
 | Evidence | 1 | 1 |
@@ -258,11 +271,13 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 | ManualWorks | 0 | 1 |
 | Standalone | 1 | 0 |
 
+Special（カテゴリ統計外）: `pianist`（extended）
+
 ---
 
 ## Verification 実装率
 
-- **実装済み**: 25 / 75 ≈ 33%
+- **実装済み**: 27 / 76 ≈ 36%（kernel 3.2.5 期に新規 windows_feature_config / server_feature_config を追加して +2）
 - **意図的除外**（誤 PASS リスク or 検証不可能）: 約 15 件
 - **未実装（推奨）**: 残り
 

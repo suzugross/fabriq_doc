@@ -1,8 +1,8 @@
 # バージョン管理（カーネル + モジュール SemVer + コンパチマトリクス）
 
 > **対象**: fabriq / kernel + module SemVer 運用
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `fed181a`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-10）
+> **ドキュメント更新日**: 2026-05-10
 
 fabriq は **カーネル API とモジュールを独立に SemVer 管理** する設計。Claude（実装担当）の手順制御によって整合性を担保する（ランタイムチェックは行わない）。
 
@@ -154,11 +154,12 @@ pwsh ./dev/seed_module_versions.ps1 -DryRun
 
 1. `kernel/KERNEL_VERSION` を新しい `X.Y.Z` に更新
 2. `CHANGELOG.md` の `[Unreleased]` を `[X.Y.Z] - YYYY-MM-DD` に昇格、直上に空の `[Unreleased]` を再設
-3. 以下 3 箇所の版表記を `X.Y` に同期:
-   - `README.md` L1: `# Fabriq ver{X.Y}`
-   - `kernel/common.ps1` L2: `# Easy Kitting Batch - Common Function Library v{X.Y}.Z`
-   - `kernel/main.ps1` L3: `# Fabriq ver{X.Y} - Manifeste du Surkitinisme -`
-4. `pwsh ./dev/check_version.ps1` で整合性確認
+3. 以下 4 箇所の版表記を sync（kernel 3.2.4 で `KERNEL_API.md` L3 が追加された）:
+   - `README.md` L1: `# Fabriq ver{X.Y}`（X.Y のみ）
+   - `kernel/common.ps1` L2: `# Easy Kitting Batch - Common Function Library v{X.Y.Z}`（フル）
+   - `kernel/main.ps1` L3: `# Fabriq ver{X.Y} - Manifeste du Surkitinisme -`（X.Y のみ）
+   - `kernel/KERNEL_API.md` L3: `**Current Kernel Version**: \`{X.Y.Z}\``（フル、kernel 3.2.4 で release sync 対象に追加）
+4. `pwsh ./dev/check_version.ps1` で整合性確認（上記 4 箇所すべてを検証）
 5. ユーザーに annotated タグコマンドを提示（`git tag -a kernel-vX.Y.Z -m "..."`、Claude 側では実行しない）
 
 ---
@@ -185,9 +186,13 @@ dev/check_version.ps1
 
 ---
 
-## 現行版（2026-05-06 時点）
+## 現行版（2026-05-10 時点）
 
-- `KERNEL_VERSION`: **3.2.2**
+- `KERNEL_VERSION`: **3.2.5**
+  - 3.2.5（PATCH、2026-05-10）: Pester v5 テストスイート Phase 0-4（kernel ユニットテスト）整備 + integrity fix。**production code 不変**、tests/ ディレクトリと dev/run_tests.ps1 の追加のみ
+  - 3.2.4（PATCH、2026-05-10）: Verbose stream capture（`cmdlet.verbose` イベント、デフォルト ON、`kernel/json/verbose_capture.flag` git tracked）追加 + Telemetry 拡張（csv.load / profile context / host info / `_kernel.jsonl` チャネル）。`KERNEL_API.md` L3 を release sync 対象に追加
+  - 3.2.3（PATCH、2026-05-09）: AI 開発コーパス用 Telemetry レイヤ新設（公開 API 不変、`dev/TELEMETRY_INTERNAL.md` で内部設計を明文化）+ Status Monitor 起動診断ログ追加 + log_uploader v1.0.0 → v1.1.0（`/XD logs\telemetry` 除外）
+  - 詳細は [fabriq__kernel__12_telemetry.md](fabriq__kernel__12_telemetry.md) と [fabriq__changelog__history.md](fabriq__changelog__history.md)
 - `dev/template/VERSION`: `0.1.0`（次の新規モジュール開始版）
 - `dev/template/REQUIRES_KERNEL`: 現行カーネルに同期
-- 標準モジュール 60 件 / 拡張モジュール 15 件すべて baseline `1.0.0` / `2.0.0`（一部例外: pianist `1.6.0`, evidence_config `1.6.0`, etc.）
+- 標準モジュール 60 件 / 拡張モジュール 16 件（kernel 3.2.5 期で `windows_feature_config` v0.1.0 / `server_feature_config` v0.1.0 を追加、`bloatware_export` を retire）。baseline `1.0.0` / `2.0.0`（一部例外: pianist `1.6.0`, evidence_config `1.7.0`, sysprep_config `1.1.0`, domain_join `2.0.0` 等）

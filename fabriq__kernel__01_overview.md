@@ -1,10 +1,10 @@
 # カーネル全体像
 
 > **対象**: fabriq / kernel
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `fed181a`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-10）
+> **ドキュメント更新日**: 2026-05-10
 
-**現行版**: `kernel/KERNEL_VERSION` = `3.2.2`（fabriq ver3.2 — *Manifeste du Surkitinisme*）
+**現行版**: `kernel/KERNEL_VERSION` = `3.2.5`（fabriq ver3.2 — *Manifeste du Surkitinisme*）
 
 ## カーネルとは何か
 
@@ -42,31 +42,34 @@ modules/{standard,extended}/<name>/<name>.ps1（実モジュール）
 | **AutoPilot / AutoConfirm** | プロファイル一括実行で Y/N 確認を自動承認、モジュール間ウェイトを設定 / FlexProfile 単発実行では Y/N と Press-Enter のみ短絡 | `$global:AutoPilotMode`, `$global:AutoConfirmMode`, `Confirm-Execution`, `Wait-KeyPress` |
 | **セッション管理** | 作業者選択・媒体シリアル取得・`session.json` 保存・パスフレーズ検証 | `Initialize-Session`, `Test-MasterPassphrase`, `Reset-FabriqState` |
 | **公開契約** | カーネル公開 API（§1〜§5）/ 更新オーバーレイ契約（§9）/ Evidence Manifest 契約（§10） | `KERNEL_API.md`, `dev/framework_overlay_rules.json`, `kernel/EVIDENCE_MANIFEST.md` |
+| **Telemetry**（kernel 3.2.3+、内部実装） | AI 開発コーパス用の構造化ロギング層。モジュール envelope / Show-* / csv.load / cmdlet.verbose / セッションライフサイクル を JSONL に蓄積（公開 API 外、外部 consumer 非想定） | `Start-ModuleTelemetry`, `Complete-ModuleTelemetry`, `Write-TelemetryEvent`, `Write-KernelTelemetryEvent`, `Enable-FabriqVerboseCapture`, `dev/TELEMETRY_INTERNAL.md`, `kernel/json/{telemetry_salt.txt, verbose_capture.flag}`, `logs/telemetry/{SessionID}/` |
 
 ## 保管場所マップ（kernel 配下）
 
 ```
 kernel/
-├── KERNEL_VERSION          ── 3.2.2（カーネル API SemVer の真のソース）
-├── KERNEL_API.md           ── 公開 API サーフェスの明文化（§1〜§11）
+├── KERNEL_VERSION          ── 3.2.5（カーネル API SemVer の真のソース）
+├── KERNEL_API.md           ── 公開 API サーフェスの明文化（§1〜§11）。L3 に "Current Kernel Version" header（kernel 3.2.4 で release sync 対象に追加、check_version.ps1 が検証）
 ├── EVIDENCE_MANIFEST.md    ── manifest.json 公開契約（外部 evidence consumer 向け）
-├── common.ps1              ── 90+ 関数の共通ライブラリ（4371 行）
-├── main.ps1                ── エントリスクリプト・FlexProfile sub-loop・Windows Update ループ（1913 行）
+├── common.ps1              ── 共通ライブラリ（5190 行、telemetry レイヤ + verbose capture を含む）
+├── main.ps1                ── エントリスクリプト・FlexProfile sub-loop・Windows Update ループ（1979 行）
 ├── csv/
 │   ├── categories.csv      ── カテゴリと表示順マスタ
 │   ├── hostlist.csv        ── 対象 PC マスタ（暗号化フィールド対応）
 │   ├── workers.csv         ── 作業者マスタ
 │   ├── log_destinations.csv── ログ配送先マスタ（log_uploader 用）
 │   └── manifesto.csv       ── マニフェスト本文（演出機能）
-├── json/                       （runtime / framework 混在 — 静的に存在するのは下記 ★ の 2 件のみ）
+├── json/                       （runtime / framework 混在 — 静的に存在するのは下記 ★ の 4 件）
 │   ├── status.json         ── (runtime) ステータスモニタ用ライブ状態（atomic write）
 │   ├── session.json        ── (runtime) 現セッション情報（worker, media serial, start time）
 │   ├── resume_state.json   ── (runtime) 再起動跨ぎ時の状態スナップショット（v1/v2 schema）
 │   ├── async_config.json ★ ── (framework) __ASYNC__ Runspace 制御パラメータ
+│   ├── verbose_capture.flag ★ ── (framework) cmdlet verbose capture を有効化する空ファイル（kernel 3.2.4、git tracked、削除で opt-out）
+│   ├── telemetry_salt.txt    ── (runtime) AI 開発テレメトリの site-specific salt（kernel 3.2.3、初回自動生成、`.gitignore`）
 │   ├── art_pulse.txt     ★ ── (runtime/framework) 動作鼓動カウンタ（演出用、Show-* で +1。空状態でも commit）
 │   └── skip_request.flag   ── (runtime) async モジュール強制スキップ要求の flag ファイル
 ├── ps1/
-│   ├── status_monitor.ps1  ── 別プロセス WinForms モニタ（status.json を polling）
+│   ├── status_monitor.ps1  ── 別プロセス WinForms モニタ（status.json を polling、kernel 3.2.3 で起動診断ログ + defensive fallback 追加）
 │   ├── view_report.ps1     ── HTML チェックリストの単体ビューア
 │   ├── manifesto.ps1       ── マニフェスト表示 GUI
 │   └── art_display.ps1     ── ART 演出（status_monitor に統合済）

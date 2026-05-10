@@ -1,6 +1,6 @@
 # Fabriq Series — Unified Documentation Index
 
-**Last updated**: 2026-05-07
+**Last updated**: 2026-05-10
 **Layout**: Flat. すべての md は本リポジトリのトップ直下に配置されている（`<project>__<category>__<name>.md` 形式）。
 **LM 投入**: NotebookLM 等にこのフォルダ全体を投入すれば、ファイル名のプレフィックスでプロジェクト判別が完結する。
 
@@ -12,7 +12,7 @@
 
 | プロジェクト | 接頭辞 | ファイル数 | 対象バージョン情報源 |
 |---|---|---|---|
-| fabriq | `fabriq__` | 109 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.2 + per-module `VERSION` |
+| fabriq | `fabriq__` | 111 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.5 + per-module `VERSION`（commit `fed181a`、2026-05-10） |
 | fabriq_evidence_manager | `fabriq_evidence_manager__` | 22 | `FabriqEvidenceManager.csproj <Version>` = 3.8.1 |
 | fabriq_studio | `fabriq_studio__` | 19 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
 | tonebender | `tonebender__` | 0 (未着手) | git short hash |
@@ -20,7 +20,7 @@
 
 ---
 
-## fabriq (109 files)
+## fabriq (111 files)
 
 ### overview (1)
 
@@ -52,7 +52,7 @@
 - `fabriq__contracts__profile_csv_schema.md`
 - `fabriq__contracts__special_markers.md`
 
-### kernel (11)
+### kernel (12)
 
 - `fabriq__kernel__01_overview.md`
 - `fabriq__kernel__02_public_api.md`
@@ -65,8 +65,9 @@
 - `fabriq__kernel__09_versioning.md`
 - `fabriq__kernel__10_function_index.md`
 - `fabriq__kernel__11_directory_layout.md`
+- [fabriq__kernel__12_telemetry.md](fabriq__kernel__12_telemetry.md)
 
-### modules (76)
+### modules (77)
 
 - `fabriq__modules__00_modules_overview.md`
 - `fabriq__modules__acl_config.md`
@@ -74,7 +75,6 @@
 - `fabriq__modules__autologon_config.md`
 - `fabriq__modules__azure_ad_join_check.md`
 - `fabriq__modules__bitlocker_config.md`
-- `fabriq__modules__bloatware_export.md`
 - `fabriq__modules__bloatware_remove.md`
 - `fabriq__modules__brightness_config.md`
 - `fabriq__modules__browser_addon_config.md`
@@ -126,6 +126,7 @@
 - `fabriq__modules__robocopy_config.md`
 - `fabriq__modules__scheduled_task_config.md`
 - `fabriq__modules__script_looper.md`
+- `fabriq__modules__server_feature_config.md`
 - `fabriq__modules__signout_config.md`
 - `fabriq__modules__spi_config.md`
 - `fabriq__modules__ssid_config.md`
@@ -141,6 +142,7 @@
 - `fabriq__modules__time_sync_config.md`
 - `fabriq__modules__volume_config.md`
 - `fabriq__modules__wallpaper_config.md`
+- `fabriq__modules__windows_feature_config.md`
 - `fabriq__modules__windows_license_config.md`
 - `fabriq__modules__windows_update.md`
 - `fabriq__modules__winget_install.md`

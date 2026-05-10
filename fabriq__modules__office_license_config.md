@@ -1,8 +1,12 @@
 # office_license_config (Standard)
 
+> **対象**: fabriq / modules/standard/office_license_config
+> **対象バージョン**: モジュール 1.0.1 / kernel 3.2.5（取得元: `E:\fabriq\modules\standard\office_license_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `fed181a`、2026-05-10）
+> **ドキュメント更新日**: 2026-05-10
+
 **カテゴリ**: Security
 **メニュー名**: Install Office Product Key / Activate Office License
-**VERSION**: 1.0.0  / **REQUIRES_KERNEL**: 2.0.0
+**VERSION**: 1.0.1  / **REQUIRES_KERNEL**: 2.0.0
 **Post-Apply Verification**: install=なし／auth=スクリプト内で `/dstatus` 再解析（事実上の検証、`-Verified` は未渡し）
 **サブスクリプト**: `office_license_install.ps1`（プロダクトキー登録）, `office_license_auth.ps1`（ライセンス認証）
 
@@ -13,6 +17,50 @@ OSPP.vbs パスは C2R 64/32bit、MSI 64/32bit の 4 候補を優先順で自動
 特殊環境向けに CSV から OsppPath を強制指定可能なハイブリッド方式です。
 ENC: プレフィクスによる暗号化キーの保管に対応し、複数製品（Office 本体 + Visio +
 Project）を 1 度の認証で一括処理します。
+
+## v1.0.1 の変更（セキュリティ強化、v1.0.0 からの差分）
+
+### 変更 1: ProductKey の transcript マスク表示（A3-T1-A、2 箇所）
+
+| 場所 | v1.0.0 | v1.0.1 |
+|---|---|---|
+| L118 事前一覧表示 | `Write-Host "    Key:  $($item.ProductKey)"` 生表示 | `Get-MaskedKey` 経由マスク表示 |
+| L177 形式不正時 | `Show-Skip "Invalid key format: $($item.ProductKey)"` | 生キー値を除去、形式テンプレのみ表示 |
+
+`Get-MaskedKey` は script 先頭にローカル定義（windows_license_config v1.0.1 と同実装、末尾 5 文字のみ可視化・dash 維持）。
+
+### 変更 2: Guide.txt に Security Note を新設（cscript の構造的制約明記）
+
+`office_license_install.ps1` の `cscript OSPP.vbs /inpkey:KEY` は ProductKey を **cscript.exe の起動引数として OS layer に展開** するため、以下のログ機構に記録される:
+
+- `Win32_Process.CommandLine`（cscript.exe の lifetime 中、live snapshot）
+- Windows Security Log Event ID 4688（`Audit Process Creation` + `IncludeCommandLine` 有効環境で永続記録 → SIEM 転送）
+- PowerShell Module Logging（有効環境）
+
+これは fabriq 側で **回避できない Microsoft プラットフォームの構造的制約**:
+
+- OSPP.vbs は `WScript.Arguments` 経由で `/inpkey:KEY` を positional 引数として受け付ける設計
+- stdin / file / 環境変数経由の代替インターフェイスが存在しない
+- Office C2R 2019/2021/365 では `OfficeSoftwareProtectionService` WMI provider が deprecated/削除済で、CIM 直叩きの clean 経路が存在しない（MSI Office 2016 以前なら CIM 経由可能だが、現代の B2G 環境ではほぼ C2R）
+- 自前 wrapper VBS / `Process.Start` native API 等の代替案も、最終的に OSPP.vbs に `/inpkey:` を引数として渡す経路を回避できない
+
+**B2G / 厳格監査環境での運用推奨**（Audit Process Creation + IncludeCommandLine が site policy で強制有効、SIEM 転送ありの環境）:
+
+1. **Office Customization Tool (OCT)** で生成した XML 設定に ProductKey を埋め込み、Office インストール時に同時に key 登録（install 時 1 回の暴露で post-install の再 key install 不要に）
+2. **Microsoft Volume Licensing Service Center で AD 連携 KMS / ADBA** を構成し、ProductKey の手動登録を完全に省略
+3. 上記が不可能な場合、本モジュールの実行時間帯のみ `IncludeCommandLine` を一時的に無効化（GPO ロールバック付き）
+
+### fabriq の他モジュールとの対比
+
+| モジュール | ProductKey/秘密の OS-layer 露出 | 対策状況 |
+|---|---|---|
+| **windows_license_config** v1.0.1+ | 露出なし（`SoftwareLicensingService` CIM 経由、ProductKey は CIM パラメータ） | 構造的に不要 |
+| **robocopy_config** v1.0.1+ | UNC AuthPass を stdin pipe 経由で net.exe に渡し回避（v1.0.0 では暴露） | 修正済（kernel 3.2.5 期） |
+| **office_license_config** | OSPP.vbs `/inpkey:` の構造的制約により対策不可 | **accept & document**（本セクション） |
+
+詳細は `project_crypto_security_review.md` メモリの A3 T1-B office セクションを参照。Microsoft platform 改善（Office C2R に新しい license API 追加 等）があれば再評価対象。
+
+公開 API 不変、`REQUIRES_KERNEL` 据え置き 2.0.0、CSV スキーマ不変。
 
 ## 入力 (CSV)
 `office_key.csv`:

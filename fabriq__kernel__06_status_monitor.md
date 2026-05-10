@@ -1,8 +1,8 @@
 # ステータスモニタ + 演出 (ART pulse / silence / manifesto)
 
 > **対象**: fabriq / kernel + status_monitor
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `fed181a`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-10）
+> **ドキュメント更新日**: 2026-05-10
 
 fabriq の二画面構成の左右の片方。メインダッシュボードとは独立した別プロセスで動き、`status.json` ファイルを polling する設計。これにより重い WinForms 処理がメイン実行をブロックしない。
 
@@ -112,7 +112,8 @@ $argList = @(
     "-File", ".\kernel\ps1\status_monitor.ps1",
     "-StatusFilePath", $statusFileFullPath,
     "-PulseFilePath",  $pulseFileFullPath,
-    "-SilenceFlagPath", $silenceFlagFullPath
+    "-SilenceFlagPath", $silenceFlagFullPath,
+    "-DiagLogPath", $diagLogPath        # kernel 3.2.3 で追加
 )
 # -SentenceFilePath は art_sentences.txt が存在する場合のみ後追い追加
 if (-not [string]::IsNullOrWhiteSpace($sentenceFileFullPath)) {
@@ -122,6 +123,52 @@ Start-Process powershell.exe -ArgumentList $argList -WindowStyle Hidden -PassThr
 ```
 
 PID は `$global:FabriqStatusMonitorProcess` に格納し、`Stop-StatusMonitor` で `CloseMainWindow` → 2 秒待ち → 強制 Kill。
+
+### 起動診断ログ（kernel 3.2.3 で追加）
+
+`-WindowStyle Hidden` で起動した子プロセスは **uncaught exception を全部飲み込む**ため、子が即死／hung した場合の症状は「タスクバーに何も出ない、モニタウィンドウが現れない」だけになる。kernel 3.2.3 でこの diagnostic blackout を解消するための診断ログ機構を追加した。
+
+**ファイル配置**: `Start-StatusMonitor`（`common.ps1` L4475〜）が 1 セッション 1 ファイルを生成し、子に `-DiagLogPath` 引数で渡す。
+
+```
+logs/status_monitor_<yyyyMMdd_HHmmss>.log
+```
+
+**子側のログ機構**: `status_monitor.ps1` L24〜L31 の `Write-DiagLog` ヘルパが `Add-Content -ErrorAction SilentlyContinue` で best-effort 追記（ロガー自身が落ちないよう全例外を握り潰す設計）。起動チェーンの主要点に `[init]` / `[asm]` / `[dpi]` / `[forms]` / `[console]` / `[paths]` / `[common]` / `[form]` / `[run]` タグでログ行を残す。
+
+**Exit codes**:
+
+| Exit code | 失敗箇所 |
+|---|---|
+| 11 | `System.Drawing` ロード失敗 |
+| 12 | `System.Windows.Forms` ロード失敗 |
+| 13 | `kernel/common.ps1` の dot-source 失敗 |
+| 14 | `Application.Run` 中の uncaught exception（ScriptStackTrace を診断ログに残す）|
+
+**ウィンドウ存在ポーリングによる成否判定**（同 L4537〜L4555）:
+
+`HasExited` の即死チェックだけでは不十分なケース（App Control 配備済端末で子が後段で死亡 / hung するパターン）が 2026-05-09 に判明したため、判定の主シグナルを **「Fabriq タイトルのメインウィンドウが `$monitorProcess.MainWindowTitle` に現れたか」** に変更。最大 4 秒、200ms 間隔でポーリング。3 つの終了条件:
+
+1. `MainWindowTitle` が `"Fabriq"` を含む → 成功（process を return）
+2. `HasExited` 検出 → 失敗（早期死亡）
+3. timeout、生存中、ウィンドウ未出現 → 失敗（起動中 hung）
+
+**失敗時の operator 通知**（L4557〜以降）:
+
+- ExitCode と診断ログパスを Show-Warning で surface
+- 早期死亡 + 診断ログサイズ 0 → host security policy（WDAC / AppLocker / Defender ASR / 同等）の疑いとして operator に明示
+- 早期死亡 + 診断ログあり → `Get-Content -Tail 1` で最終行を抜粋表示
+- 生存中 hung → kill して orphan 防止 + 「ホストセキュリティ調査中の可能性」を表示
+
+### 子側 defensive fallback（kernel 3.2.3 で追加）
+
+`status_monitor.ps1` の起動チェーンには以下の局所的 fallback が組み込まれている。
+
+**DpiX ゼロ／負値ガード**（L70〜L86）: `Graphics.FromHwnd([IntPtr]::Zero).DpiX` が病的に 0 / 負を返す環境で Form Size が `(0, 0)` になり「実行しているのに不可視」となる経路を遮断。`$rawDpi -le 0` で 96 fallback、`dpiScale<=0` を 1.0 にクランプ。
+
+**`NoActivateForm` Add-Type 失敗時の fallback**（L118〜L159）: 動的 C# コンパイルが AMSI / `csc.exe` パス問題 / `%TEMP%` 書込権限欠如等で失敗した場合、通常の `System.Windows.Forms.Form` および `System.Windows.Forms.StatusStrip` で代用。`WS_EX_NOACTIVATE` のフォーカスを奪わない挙動は失うが、**ウィンドウが画面に出ること** を優先。`$script:useFallbackForm` フラグで分岐。
+
+**`Application.Run` を try/catch でラップ**（L1348〜L1355）: 例外時は `ScriptStackTrace` を診断ログに残して exit 14。
 
 ### 表示要素（概念）
 

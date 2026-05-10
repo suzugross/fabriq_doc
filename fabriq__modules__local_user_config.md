@@ -1,8 +1,12 @@
 # local_user_config (Standard)
 
+> **対象**: fabriq / modules/standard/local_user_config
+> **対象バージョン**: モジュール 1.1.0 / kernel 3.2.5（取得元: `E:\fabriq\modules\standard\local_user_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `fed181a`、2026-05-10）
+> **ドキュメント更新日**: 2026-05-10
+
 **カテゴリ**: User Management
 **メニュー名**: Create Local Users / Delete Local Users
-**VERSION**: 1.0.0  / **REQUIRES_KERNEL**: 2.0.0
+**VERSION**: 1.1.0  / **REQUIRES_KERNEL**: 2.0.0
 **Post-Apply Verification**: Create のみ実装あり（ユーザー存在 + グループ所属検証）／Delete はなし
 **サブスクリプト**: `local_user_config.ps1`（作成）, `local_user_delete.ps1`（削除）
 
@@ -12,6 +16,18 @@
 union 適用するハイブリッド構造で、共通管理者アカウントは前者で一元管理しつつ、
 特定機種だけにローカル運用ユーザーを足す等の柔軟な運用が可能です。
 グループ所属はセミコロン区切り複数指定（例: `Users;Remote Desktop Users`）。
+
+## v1.1.0 の変更（v1.0.x からの差分）
+
+`local_user_list.csv` 側が **Segment フィルタで全行 0 件**になっても、`local_user_host_list.csv` 側にマッチする行があれば処理を続行する **PC 固有単独モード** をサポート（v1.0.x では false Error を出していた）。
+
+| シナリオ | v1.0.x | v1.1.0 |
+|---|---|---|
+| 共通 CSV ファイルが見つからない | Error 終了 | Error 終了（変更なし） |
+| 共通 CSV ヘッダのみ / Segment フィルタで全行除外 + host 側 0 件 | Error（false Error） | **Skipped（正常終了）** |
+| 共通 CSV 0 件 + host 側にマッチ行あり | Error（false Error） | **共通分は 0 行、host 行のみで処理続行** |
+
+`Import-ModuleCsv` が "Segment 0 match" で `@()` を返したのを PowerShell が auto-unwrap して `$null` にしてしまう挙動を踏まえ、ファイル不在は Error / それ以外は空配列扱いに分岐する修正。Profile で create / delete などの Segment 別運用を行うときに、共通ユーザーを置かず PC 個別ユーザーのみを host_list.csv 側で Segment 区別する運用がサポートされる。
 
 ## 入力 (CSV)
 **`local_user_list.csv`（全 PC 共通）**:

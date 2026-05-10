@@ -1,10 +1,10 @@
 # fabriq 変更履歴（注釈付き要約）
 
-> **対象**: fabriq / 全体（kernel + 75 modules）
-> **対象バージョン**: 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION` + `E:\fabriq\CHANGELOG.md`）
-> **ドキュメント更新日**: 2026-05-07
+> **対象**: fabriq / 全体（kernel + 76 modules）
+> **対象バージョン**: 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION` + `E:\fabriq\CHANGELOG.md`、commit `fed181a`、2026-05-10）
+> **ドキュメント更新日**: 2026-05-10
 
-`E:\fabriq\CHANGELOG.md` の **公式変更履歴** を、ドキュメント読者向けに **テーマ別に整理した注釈付き要約** にしたもの。原典を置き換える意図はない（行数で 2200+ 行）。本書は**重要転換点を素早く把握する**ためのオーバービュー。
+`E:\fabriq\CHANGELOG.md` の **公式変更履歴** を、ドキュメント読者向けに **テーマ別に整理した注釈付き要約** にしたもの。原典を置き換える意図はない（行数で 2500+ 行）。本書は**重要転換点を素早く把握する**ためのオーバービュー。
 
 ---
 
@@ -12,7 +12,7 @@
 
 | プロジェクト | 版管理 | 値 |
 |---|---|---|
-| **kernel** | SemVer（`kernel/KERNEL_VERSION`） | 3.2.2（最新） |
+| **kernel** | SemVer（`kernel/KERNEL_VERSION`） | 3.2.5（最新） |
 | **各モジュール** | SemVer（`modules/<kind>/<name>/VERSION`） | 個別、kernel と独立 |
 | **REQUIRES_KERNEL** | 各モジュールの最小要求 kernel 版 | `modules/<kind>/<name>/REQUIRES_KERNEL` |
 | **CHANGELOG カテゴリ** | Keep a Changelog 1.1.0 準拠 | Added / Changed / Deprecated / Removed / Fixed / Security |
@@ -20,6 +20,73 @@
 ---
 
 ## 主要マイルストーン
+
+### kernel 3.2.5 — Pester v5 テストスイート整備（2026-05-10）
+
+**production code を一切触らず**、kernel ユニットテスト基盤を Phase 0〜4 で組み上げた純粋追加リリース。`KERNEL_API.md` 不変、公開 API 不変。
+
+| ファイル | 内容 |
+|---|---|
+| `tests/_helpers/test_state.ps1` | `Get-FabriqRepoRoot` / `Set-FabriqTestState`（`$script:ResumeStatePath` 等を test から override 可能に） |
+| `tests/_helpers/test_csv.ps1` | `New-TestProfileCsv` / `Remove-TestProfileCsv` / `New-MockModule`。一時 Profile CSV は `Resolve-ProfileModules` の `Import-Csv -Encoding Default` に合わせ ASCII 出力（JP locale CP932 環境の BOM 誤読を回避） |
+| `tests/kernel/Resolve-ProfileModules.tests.ps1`（Phase 0/1） | 6 Context / 14 ケース。過去 regression（kernel 3.0.0 / 3.1.3 / 3.1.7 / 3.2.0 / 2.1.0）を pin |
+| `tests/kernel/New-BatchResult.tests.ps1`（Phase 1b） | 4 Context / 18 ケース。Status 自動判定 5x3 マトリクス全分岐 |
+| `tests/kernel/Import-ModuleCsv.tests.ps1`（Phase 1b） | 4 Context / 14 ケース。Segment 厳密マッチ 5 ケース、空集合 → `$null` の caller-observable 挙動を pin |
+| `tests/kernel/ResumeState.tests.ps1`（Phase 2） | 4 Context / 15 ケース。Linear (v1) / Flex (v2) 出力契約 + round-trip + load 境界 |
+| `tests/kernel/New-ModuleResult.tests.ps1`（Phase 3） | 5 Context / 19 ケース。`KERNEL_API.md §1.3 / §5` 直接 pin |
+| `tests/kernel/Confirm-Execution.tests.ps1`（Phase 3） | 3 Describe / 14 ケース。AutoPilot + AutoConfirmMode 二段短絡契約 |
+| `tests/kernel/Set-SelectedHostEnvironment.tests.ps1`（Phase 4） | 16 ケース |
+| `dev/run_tests.ps1` | Pester v5+ runner（v3.4.0 OS 同梱版は不可、`-SkipPublisherCheck` 必須） |
+
+**運用への影響**: 開発者向け。AI / 開発者が CHANGELOG に挙げた regression を未来検出できるようになった。本番動作には影響なし。
+
+### kernel 3.2.4 — Verbose stream capture + Telemetry 拡張（2026-05-10）
+
+Telemetry レイヤを実用化する 2 つの拡張を同日リリース。**`KERNEL_API.md` 公開 API 不変**だが、release sync 対象に `KERNEL_API.md` L3「Current Kernel Version」ヘッダを追加（過去に 2 release ぶん drift した実績への対応、`dev/check_version.ps1` で検証）。
+
+**(1) Verbose stream capture**（`cmdlet.verbose` チャネル、デフォルト ON）:
+
+- `kernel/json/verbose_capture.flag` を **git tracked で同梱**（標準配備でデフォルト有効）
+- 起動時 `Enable-FabriqVerboseCapture` が flag 存在で `$global:FabriqVerboseCaptureActive=$true` をセット
+- `Invoke-SafeCommand` がモジュール実行を `$VerbosePreference='Continue'` + `$PSDefaultParameterValues['*:Verbose']=$true` + `4>&1` redirect で wrap、`[VerboseRecord]` を `cmdlet.verbose` イベントに変換
+- 取得対象: 組み込み cmdlet の `ShouldProcess` 経由 verbose（`Set-ItemProperty` 等の "Performing the operation..." 行）。外部プロセス（winget / robocopy / dism）と `Invoke-SafeCommandAsync` 経由は対象外
+- **Process restart 不要**（先行検討した Module Logging E1 trial は registry 書き換えが late-load module をカバーできなかった反省、`dev/TELEMETRY_INTERNAL.md` §6.7 が経緯を明文化）
+- Opt-out: flag 削除のみ（`logs/telemetry/` も `log_uploader` `/XD` 除外で外に出ない、local-only）
+
+**(2) Telemetry coverage 拡張**:
+
+- **`csv.load` イベント**: `Import-ModuleCsv` 正常 return 時に `{fileName, path, totalRows, returnedRows, filterEnabled, segment, columns}` を発行（CSV 値含まず）
+- **Profile context フィールド**: `envelope.start` に `profileName`, `profileOrder`, `executionMode` (Linear/Flex), `prevModuleName`, `prevModuleStatus` 追加（`Invoke-BatchExecution` が `$global:_FabriqCurrentProfileContext` を per-module でセット）
+- **`_meta.json` host info**: `Win32_OperatingSystem` + `Win32_ComputerSystem` を CIM で 1 セッション 1 回キャッシュ。`manufacturer` / `model` はフリート単位識別子として **redact せず raw 保存**
+- **`_kernel.jsonl` チャネル**: `Write-KernelTelemetryEvent` 新設、session-lifecycle 5 イベント（`profile.start/end`, `restart.invoked`, `resume.consumed`, `finalize.start/end`）を発行
+
+**運用への影響**: モジュール側無変更、副次副作用としてバックグラウンド telemetry が動く。詳細は [fabriq__kernel__12_telemetry.md](fabriq__kernel__12_telemetry.md)。
+
+### kernel 3.2.3 — AI 開発テレメトリ層 + Status Monitor 起動診断（2026-05-09）
+
+fabriq の挙動を構造化 JSONL に蓄積する **AI 開発コーパス機構** を新設。**KERNEL_API.md には未昇格**（dev/TELEMETRY_INTERNAL.md で内部設計を集約）。
+
+**Telemetry レイヤ**:
+
+- 新規関数群: `Get-TelemetrySalt`, `New-TelemetryRedactMap`, `Invoke-TelemetryRedact`, `Write-TelemetryEvent`, `Start-ModuleTelemetry`, `Complete-ModuleTelemetry`, `_GetShowTag`, `_TrackShowEvent`, `_HashTelemetryValue`
+- Show-* 5 関数（Show-Info / Success / Warning / Error / Skip）に副次副作用追加（戻り値・出力ストリーム・コンソール表示は不変）
+- `Invoke-SafeCommand` / `Invoke-SafeCommandAsync` の entry / exit に envelope hook
+- プライバシ契約: salt 付き SHA-256（先頭 12 hex）でハッシュ化、`SELECTED_PIN` のみ `[REDACTED]` 固定。Salt は `kernel/json/telemetry_salt.txt`（256 bit、初回自動生成、`.gitignore`、site-specific）
+- Scope 設計: telemetry 内部状態は `$global:` 保持（`$script:` だと Show-* がモジュール側 script scope を参照する PowerShell 動的 scope 仕様の罠を回避）
+- 子 runspace（`__ASYNC__`）でも envelope 共有（inject hashtable 経由）
+- `log_uploader` v1.0.0 → v1.1.0（MINOR）: robocopy `/XD logs\telemetry` 除外を追加し「テレメトリは AI 開発専用、PC 外持ち出し禁止」契約を実装で担保
+- 設計詳細は `dev/TELEMETRY_INTERNAL.md`（schemaVersion=1）
+
+**Status Monitor 起動診断ログ**:
+
+- 親側（`Start-StatusMonitor`）が `logs/status_monitor_<ts>.log` を 1 セッション 1 ファイル生成、`-DiagLogPath` 引数で子に渡す
+- 子側（`status_monitor.ps1`）が `Write-DiagLog` ヘルパで起動チェーン全段（DPI / WinForms / common.ps1 dot-source / Form 生成 / Application.Run）にログ
+- Exit codes 11〜14 で失敗箇所を識別（System.Drawing / WinForms / common.ps1 / Application.Run）
+- **`NoActivateForm` Add-Type 失敗時の plain Form fallback**（AMSI / `csc.exe` パス問題等）
+- **DpiX 病的値ガード**（0 / 負を 96 fallback 化、`dpiScale<=0` を 1.0 にクランプ）
+- **ウィンドウ存在ポーリング判定**（最大 4 秒、200ms 間隔。`MainWindowTitle` に `"Fabriq"` が現れたかで主判定。App Control 配備済端末で `HasExited` 即死チェックが取りこぼす事例への対応）
+
+**併走モジュール変更**: `sysprep_config` v1.0.0 → v1.1.0（MINOR、generalize-pass driver 設定の variabilize、詳細は [fabriq__modules__sysprep_config.md](fabriq__modules__sysprep_config.md)）
 
 ### kernel 3.2.x — Profile CSV Group 列の導入（2026-05-02）
 
