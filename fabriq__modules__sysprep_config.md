@@ -81,7 +81,7 @@ generalize-pass のドライバ保持設定（`<DoNotCleanUpNonPresentDevices>` 
   TestUserName 行を Enabled=0 にする
 - `<AdministratorPassword>` はパスワード設定のみ。Administrator アカウント有効化は
   `setupcomplete_list.csv` の `net user Administrator /active:yes` を Enabled=1 にする
-- 冪等性なし（実行のたびに上書き）。Sysprep 自体に同一イメージへの実行回数制限あり（既定 3 回）
+- 冪等性なし（実行のたびに上書き）。Sysprep `/generalize` 自体に同一イメージへの実行回数制限あり（Windows 10/11 では既定 **1001 回**。`unattend.xml` の `<SkipRearm>1</SkipRearm>` で回避可能。Microsoft Learn "Sysprep (Generalize) a Windows installation" 参照）。古い文献にある「3 回」は Windows XP/Vista/7 時代の rearm 上限の名残で現行 Windows には該当しない
 - Default プロファイルを露出するための ATTRIB -H / 内部キャッシュ削除 / ATTRIB +H 一連の
   アクションが setupcomplete に標準同梱されている（INetCache / WebCache / LocalLow 削除）
 - `taskbar_config` から自動コピーされる `LayoutModification.xml` が source/ 経由で
