@@ -1,8 +1,8 @@
 # fabriq 全体像
 
 > **対象**: fabriq / 全体
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 ## fabriq とは
 

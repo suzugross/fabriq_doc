@@ -1,8 +1,8 @@
 # FlexProfile ダッシュボード操作
 
 > **対象**: fabriq / usage
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 `[Execute (Flex)]` で開く **state-aware 部分実行ダッシュボード** の使い方。Linear（先頭から末尾まで自動進行）に対し、Flex は「**1 モジュール単位で再実行可能 + 完了タイミングは operator 判断**」の運用モデル。kernel 3.1.0 で導入、3.1.x 系で安定化、3.2.0 で `Group` 列追加。
 
@@ -152,6 +152,8 @@ $pendingFinalize = $true
 ```
 
 `AutoConfirmMode` は AutoPilot のサブセット動作（モジュール間 wait なし、Y/N と Press-Enter のみ自動）。1 モジュール単発実行に最適。
+
+**kernel 3.3.1 の修正履歴**: kernel 3.3.0 で `async_config.json.DefaultAsync=true` を shipped default 化した結果、`[Run This]` が child runspace 経路を通るようになり、`$global:AutoConfirmMode` が inject hashtable に含まれていなかったために child 側で `$false` のまま残るバグ（3.1.0 以来の dormant bug）が顕在化。`Confirm-ModuleExecution` の Y/N プロンプト（`reg_hkcu_config` の "Apply the above registry changes?" 等、108 モジュールが該当）が auto-confirm されず Read-Host へ落ちる regression が出ていた。**kernel 3.3.1** で `Invoke-SafeCommandAsync` の inject に `AutoConfirmMode = $global:AutoConfirmMode` を追加して修正済み。`[Run Selected]` / `[Run: Group]` / Linear は `AutoPilotMode` が inject 済みのため無影響だった。
 
 ### 2-2. `[Run Selected (N)]`（RunBatch）
 

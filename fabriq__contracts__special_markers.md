@@ -1,10 +1,14 @@
 # 特殊マーカー（Special Markers）契約
 
+> **対象**: fabriq / 契約（特殊マーカー）
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
+
 profile CSV の `ScriptPath` 列に書ける特殊識別子。`Resolve-ProfileModules` がこれらを解釈してプロファイル全体の挙動を制御する。
 
 ---
 
-## 現行マーカー（5 種、kernel 3.2.x）
+## 現行マーカー（5 種、kernel 3.3.x）
 
 ### 1. `__AUTOPILOT__`（kernel 2.0.0〜）
 
@@ -28,7 +32,7 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 
 **注意**: AutoPilot は「**確認スキップ + auto-resume**」であり「完全無人」ではない。operator が脇で見ていて状況に応じて Esc できる前提（feedback memory `feedback_autopilot_wording`）。
 
-### 2. `__ASYNC__`（kernel 2.1.0〜）
+### 2. `__ASYNC__`（kernel 2.1.0〜 / 3.3.0 で意味論拡張）
 
 ```csv
 20,__ASYNC__,1,以降を Runspace 化,,,
@@ -41,7 +45,16 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 - ValidModules には入らない
 - 効果範囲: プロファイル末尾まで（途中で sync に戻すマーカーは無い）
 
-**意味**: モジュール内ハングや長時間処理に対して、Status Monitor の Skip ボタン or `DefaultTimeoutSec` で強制中断できるようにする。詳細は §08_async_execution.md。
+**kernel 3.3.0 での意味論拡張（後方互換）**:
+
+`async_config.json` に新フィールド `DefaultAsync` が追加され、**shipped default は `true`**。`DefaultAsync=true` のとき profile 1 行目から `_IsAsync=$true` が全モジュールに attach されるため、`__ASYNC__` マーカーは **idempotent な ON-only no-op** として動作する（既に async なので flip しない）。マーカー自体は廃止されておらず、以下の用途で引き続き有効：
+
+- `DefaultAsync=false` 環境への portable な profile を作る場合（明示的に async opt-in したいケース）
+- profile を読んだ運用者に「ここから async が効く」と視覚的に示したい場合（self-documenting）
+
+**優先順位**（高 → 低）: `Enabled=false`（kill switch、全モジュールを同期に降格） > `DefaultAsync=true`（全モジュール async） > `__ASYNC__` マーカー（マーカー以降を async）
+
+**意味**: モジュール内ハングや長時間処理に対して、Status Monitor の Skip ボタン or `DefaultTimeoutSec` で強制中断できるようにする。kernel 3.3.0 以降は profile 側の書き忘れによる安全網の無効化を防ぐため、全モジュール async がデフォルトになっている。詳細は [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md)。
 
 ### 3. `__RESTART__`（kernel 2.0.0〜）
 
@@ -149,6 +162,8 @@ Linear `[Execute Profile]` は Group 列を無視して全マーカーを順序�
 - `__RESTART__` / `__REEXPLORER__` / `__AUTO_to_<User>__` は ValidModules に入るが `_IsCheckedDefault=$false` がつく（dashboard で初期 unchecked）
 
 「**disabled marker 行が global state を勝手に flip しない**」安全弁。FlexProfile でプロファイル全体を可視化しても、Enabled=0 のマーカー行が誤動作することはない。
+
+**3.3.0 以降の補足**: `DefaultAsync=true` 環境では `__ASYNC__` 行が `Enabled=0` であっても、`_IsAsync=$true` は `async_config.json` 側から全モジュールに attach される。「`Enabled=0` のマーカー行が global state を flip しない」原則と、「config が global state を決める」原則が交わる点で、結果として `Enabled=0` の `__ASYNC__` でも全モジュール async になる（マーカーが no-op だから当然）。これは矛盾ではなく、マーカー単独で sync 化を取り消す手段が無いことを示している（取り消したいなら `async_config.json.DefaultAsync=false` か `Enabled=false`）。
 
 ---
 

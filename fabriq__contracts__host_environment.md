@@ -1,5 +1,9 @@
 # SELECTED_* / FABRIQ_* 環境変数契約
 
+> **対象**: fabriq / 契約（環境変数 + 公開グローバル）
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
+
 `KERNEL_API.md §3` で公式宣言。fabriq の最重要 IPC（プロセス内コミュニケーション）。`hostlist.csv` の選択行から流れた値が、すべてのモジュールに共通して見える形で配信される。
 
 ---
@@ -92,7 +96,7 @@ Invoke-BatchExecution の loop:
 | `$global:FabriqMasterPassphrase` | string | (なし) | 環境変数化しないことで child process 漏洩を防ぐ。Runspace 注入時のみ明示転送 |
 | `$global:AutoPilotMode` | bool | (なし) | プロセス内 flag（環境変数化すると spawn された script や子プロセスにも影響して混乱） |
 | `$global:AutoPilotWaitSec` | int | (なし) | 同上 |
-| `$global:AutoConfirmMode` | bool | (なし) | FlexProfile 単発実行用 (kernel 3.1.0+) |
+| `$global:AutoConfirmMode` | bool | (なし) | FlexProfile 単発実行用 (kernel 3.1.0+)。kernel 3.3.1 で `Invoke-SafeCommandAsync` の inject hashtable に追加され、child runspace 側でも値が正しく見えるようになった（3.3.0 で `DefaultAsync=true` 既定化により RunSingle が child runspace 経路に乗った際の Y/N プロンプト regression を解消） |
 | `$global:FabriqEvidenceBasePath` | string | `FABRIQ_EVIDENCE_BASE` | 環境変数版も提供（モジュール内 `Join-Path` のため） |
 
 ---
@@ -148,12 +152,14 @@ EvidenceBasePath / SessionID / ProtectedPassphrase（DPAPI 復号 → $global:Fa
 
 ## 環境変数の Runspace 継承
 
-`__ASYNC__` で Runspace 実行に切り替わった場合：
+profile 経路でモジュールが Runspace 実行（`Invoke-SafeCommandAsync`）に切り替わった場合：
 
 - `$env:*` は Process スコープなので **Runspace に自動継承される**（child runspace が parent process と同じ environment block を共有）
 - `$global:*` は Runspace のスコープが異なるため **明示注入が必要**
 
 `Invoke-SafeCommandAsync` の `$inject` ハッシュテーブルが `$global:*` を Runspace の global スコープへ Set-Variable で注入する。
+
+**Runspace 経路に乗る条件（kernel 3.3.0 以降）**: 従来は `__ASYNC__` マーカー以降のモジュールに限られたが、3.3.0 で `async_config.json` に `DefaultAsync` フィールドが追加され、shipped default は `true`。**既定環境では profile 1 行目から全モジュールが Runspace 経路に乗る**ため、本セクションの記述（明示注入の必要性）はマーカー有無に関わらず全 profile モジュールに該当する。`__ASYNC__` マーカーは ON-only no-op として後方互換保持。詳細は [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md)。
 
 ---
 

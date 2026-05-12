@@ -1,8 +1,10 @@
 # common.ps1 + main.ps1 関数インデックス（100 関数）
 
 > **対象**: fabriq / kernel
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
+>
+> **行番号注意**: kernel 3.2.3 以降の telemetry レイヤ追加・3.3.0 の `DefaultAsync` フィールド追加等で `common.ps1` の行位置が大きく drift しています。本索引は async / profile 解決まわりの主要関数のみ 3.3.1 時点の行位置に更新済み。それ以外の行番号は 3.2.2 時点のものが残存しているため、ピンポイント参照時は `Grep '^function <Name>'` で再確認してください。
 
 `kernel/common.ps1`（91 関数）+ `kernel/main.ps1`（9 関数）で定義されている全関数の一覧。**公開 API**（KERNEL_API.md §1〜§5 で宣言）と**内部実装**（PATCH バージョンでも変更されうる）を区別して記載。
 
@@ -61,12 +63,12 @@
 
 | 関数 | 場所 | 用途 |
 |---|---|---|
-| `Invoke-SafeCommand` | common 900 | 同期実行 + ModuleResult 捕捉 + 例外吸収 |
-| `Invoke-SafeCommandAsync` | common 1008 | Runspace 実行 + Skip flag / Timeout 監視 |
-| `Get-FabriqAsyncConfig` | common 984 | async_config.json 読み込み |
+| `Invoke-SafeCommand` | common 1445 | 同期実行 + ModuleResult 捕捉 + 例外吸収。kernel 3.3.0 で `DefaultAsync=true` shipped default 化後はこの経路を通るのは `__ASYNC__` 関連の Enabled=false / DefaultAsync=false のとき限定 |
+| `Invoke-SafeCommandAsync` | common 1621 | Runspace 実行 + Skip flag / Timeout 監視。kernel 3.3.1 で inject hashtable に `AutoConfirmMode = $global:AutoConfirmMode` を追加（公開グローバル `$global:AutoConfirmMode` の child runspace 伝播漏れ修正） |
+| `Get-FabriqAsyncConfig` | common 1591 | `async_config.json` 読み込み。返却 PSCustomObject に `Enabled` / `DefaultAsync`（kernel 3.3.0〜）/ `DefaultTimeoutSec` / `PollIntervalMs` / `SkipFlagPath` を含む。`DefaultAsync` 欠損時のフォールバックは `$false`（旧 config 互換、silent な async 化を防ぐ） |
 | `Invoke-BatchExecution` | main 223 | プロファイル一括実行ループ（マーカー処理含む） |
 | `Invoke-KittingScript` | main 136 | 単発モジュール実行 |
-| `Invoke-FlexProfileLoop` | main 561 | FlexProfile sub-loop（dashboard 駆動） |
+| `Invoke-FlexProfileLoop` | main 617 | FlexProfile sub-loop（dashboard 駆動） |
 | `Invoke-WindowsUpdateLoop` | main 872 | WU リブートループ（wu_state.json） |
 | `Set-WindowsUpdateAutoLogon` | main 813 | WU 用 AutoLogon 設定 |
 | `Clear-WindowsUpdateAutoLogon` | main 853 | WU 完了後の credential クリア |
@@ -76,7 +78,7 @@
 
 | 関数 | 場所 | 用途 |
 |---|---|---|
-| `Resolve-ProfileModules` | common 3105 | profile CSV → module list 変換（マーカー解釈含む） |
+| `Resolve-ProfileModules` | common 3781 | profile CSV → module list 変換（マーカー解釈含む）。kernel 3.3.0 で `$asyncMode` 初期値を `$false` ハードコードから `$asyncEnabledGlobally -and [bool]$asyncCfg.DefaultAsync` 算出に変更、`__ASYNC__` マーカーは ON-only no-op として後方互換保持 |
 | `Initialize-ModuleSystem` | common 3887 | modules/{std,ext}/*/module.csv 自動検出 |
 | `Build-CategoryMenu` | common 3866 | カテゴリ別グルーピング + 順序 |
 | `Load-Profiles` | common 3063 | profiles/*.csv 一覧化 |

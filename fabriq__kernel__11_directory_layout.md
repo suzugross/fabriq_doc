@@ -1,5 +1,9 @@
 # ディレクトリ構成全体図
 
+> **対象**: fabriq / kernel + リポジトリ全体構造
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
+
 fabriq リポジトリのファイルツリーを上から眺めた全体像。配備時の意味づけ・更新オーバーレイの境界・ランタイム生成物の配置を網羅する。
 
 ---
@@ -169,12 +173,12 @@ profiles/
 ├── _test_harness.csv             ── テストハーネス（test_harness_config 用）
 ├── _test_harness_async.csv       ── async モード検証用
 └── easy_template/                ── EasyProfile（簡易プロファイル実行）
-    ├── easyprofile.bat
-    ├── easyprofile.ps1
-    └── easyprofile.csv
+    ├── easyprofile.bat            ── 管理者昇格 + powershell -File easyprofile.ps1
+    ├── easyprofile.ps1            ── 軽量 AutoPilot ランナー本体
+    └── easyprofile.csv            ── Enabled,Script,Description,Segment の 4 列（kernel 3.3.1 期に Segment 列追加）
 ```
 
-profiles/ は overlay の **excludeDirsRecursive** で完全保護される（顧客カスタムが上書きされない）。
+profiles/ は overlay の **excludeDirsRecursive** で完全保護される（顧客カスタムが上書きされない）。`easy_template/` の使い方・Segment 列の per-row dispatch については [fabriq__profiles__easyprofile.md](fabriq__profiles__easyprofile.md) を参照。
 
 ---
 

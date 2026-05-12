@@ -1,8 +1,8 @@
 # Telemetry レイヤ（AI 開発コーパス）
 
 > **対象**: fabriq / kernel telemetry layer
-> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`、commit `fed181a`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`、commit `5525728`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 kernel 3.2.3 で追加された **AI 開発コーパス用** の構造化ロギング層。fabriq の運転中の挙動（モジュール envelope / Show-* / 例外 / CSV 構造メタ / セッションライフサイクル / cmdlet verbose 出力）を JSONL に蓄積し、後で AI が事後分析できるようにする。**運用上のオブザーバビリティ機能ではなく、エビデンス・監査チャネルでもない**（それらは引き続き `evidence/checklist*.html` と `manifest.json` が担う）。
 
@@ -207,7 +207,9 @@ main.ps1 L1461 の `$null = Enable-FabriqVerboseCapture` が flag 存在チェ�
 | 組み込み cmdlet の `ShouldProcess` 経由 verbose（`Set-ItemProperty`, `Rename-Computer`, `Add-Computer`, `Set-NetFirewallProfile`, `New-LocalUser`, ...） | ✅ |
 | ユーザ定義関数の `Write-Verbose` | 🔶 該当関数が呼ばれた場合のみ |
 | 外部プロセス（`winget`, `robocopy`, `dism`, `slmgr`, native binaries）の stdout/stderr | ❌ PowerShell verbose ストリームの圏外 |
-| `Invoke-SafeCommandAsync` 経由（`__ASYNC__` モジュール） | ❌ Phase 1 では child runspace 内 redirect 未実装 |
+| `Invoke-SafeCommandAsync` 経由（async runspace 経路のモジュール） | ❌ Phase 1 では child runspace 内 redirect 未実装 |
+
+**kernel 3.3.0 以降の重要な含意**: 3.3.0 で `async_config.json.DefaultAsync=true` が shipped default 化されたため、**既定環境では全モジュールが `Invoke-SafeCommandAsync` 経路を通る** = 上表 4 行目の「❌」が事実上ほぼすべてのモジュールに該当し、`cmdlet.verbose` 取得は実質ゼロになる。`cmdlet.verbose` の coverage を確保したい開発・調査用途では、一時的に `kernel/json/async_config.json` の `DefaultAsync` を `false` に切り替えるか、当該モジュールだけを Linear path で実行する必要がある（永続変更にしない場合は調査後に元へ戻すこと）。Phase 1 で child runspace 内 redirect が未実装である経緯は `dev/TELEMETRY_INTERNAL.md` を参照。
 
 ### Trade-off（実装上の事実）
 

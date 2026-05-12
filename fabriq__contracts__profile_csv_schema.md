@@ -1,5 +1,9 @@
 # Profile CSV スキーマ契約
 
+> **対象**: fabriq / 契約（Profile CSV）
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
+
 `KERNEL_API.md §4` で公式宣言。fabriq の最重要契約のひとつ。プロファイル CSV はキッティングシナリオを宣言する DSL であり、kernel と fabriq_studio の双方が依存する。
 
 ---
@@ -55,7 +59,7 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 | マーカー | 動作 | 由来版 |
 |---|---|---|
 | `__AUTOPILOT__` | 以降を AutoPilot 化（Y/N 自動承認 + 指定 wait 秒のモジュール間スリープ）。`Description` に `WaitSec=N` で wait 秒指定 | 2.0.0 |
-| `__ASYNC__` | 以降を Runspace 実行に切り替え。Status Monitor の Skip ボタン or `async_config.json` の `DefaultTimeoutSec` で強制中断可能 | 2.1.0 |
+| `__ASYNC__` | 以降を Runspace 実行に切り替え。Status Monitor の Skip ボタン or `async_config.json` の `DefaultTimeoutSec` で強制中断可能。**kernel 3.3.0 で意味論拡張**: shipped default `DefaultAsync=true` 時は全モジュールが既に async のため、本マーカーは idempotent ON-only no-op（後方互換） | 2.1.0 / 3.3.0 |
 | `__RESTART__` | Windows 再起動 → RunOnce 経由で resume | 2.0.0 |
 | `__REEXPLORER__` | Explorer 再起動（HKCU レジストリ変更の即時反映等） | 2.0.0 |
 | `__AUTO_to_<User>__` | `autologon_config` を該当 User で呼び出し | 2.0.0 |
@@ -89,6 +93,8 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 - ValidModules には入らない
 - 以降のすべての通常モジュールに `_IsAsync=$true` を attach（sticky）
 - 効果範囲: プロファイル末尾まで
+
+**kernel 3.3.0 以降の挙動**: `async_config.json` の新フィールド `DefaultAsync` が shipped default で `true` のため、profile 1 行目から `_IsAsync=$true` が attach され、`__ASYNC__` マーカーは idempotent ON-only no-op として動作する。優先順位は `Enabled=false`（kill） > `DefaultAsync=true` > `__ASYNC__` マーカー。詳細は [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md) と [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md) を参照。
 
 ### `__RESTART__`
 

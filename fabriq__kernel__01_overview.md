@@ -1,10 +1,10 @@
 # カーネル全体像
 
 > **対象**: fabriq / kernel
-> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `fed181a`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
-**現行版**: `kernel/KERNEL_VERSION` = `3.2.5`（fabriq ver3.2 — *Manifeste du Surkitinisme*）
+**現行版**: `kernel/KERNEL_VERSION` = `3.3.1`（fabriq ver3.3 — *Manifeste du Surkitinisme*）
 
 ## カーネルとは何か
 

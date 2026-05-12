@@ -1,8 +1,8 @@
 # バージョン管理（カーネル + モジュール SemVer + コンパチマトリクス）
 
 > **対象**: fabriq / kernel + module SemVer 運用
-> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `fed181a`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 fabriq は **カーネル API とモジュールを独立に SemVer 管理** する設計。Claude（実装担当）の手順制御によって整合性を担保する（ランタイムチェックは行わない）。
 
@@ -186,9 +186,11 @@ dev/check_version.ps1
 
 ---
 
-## 現行版（2026-05-10 時点）
+## 現行版（2026-05-12 時点）
 
-- `KERNEL_VERSION`: **3.2.5**
+- `KERNEL_VERSION`: **3.3.1**
+  - 3.3.1（PATCH、2026-05-12）: `Invoke-SafeCommandAsync` の inject hashtable に `AutoConfirmMode = $global:AutoConfirmMode` を 1 行追加。kernel 3.1.0 で公開グローバル化されていた `$global:AutoConfirmMode` が child runspace 側へ伝播していなかった dormant bug が、3.3.0 で全モジュール async 化により顕在化（FlexProfile `[Run This]` で `Confirm-ModuleExecution` の Y/N プロンプトが Read-Host へ落ちる regression）。`Confirm-ModuleExecution` を呼ぶ 108 モジュールが影響対象だったが、Run Batch / Run Group / Linear は `AutoPilotMode` inject 済みのため無影響
+  - 3.3.0（MINOR、2026-05-12）: `__ASYNC__` マーカー意味論の後方互換拡張。`async_config.json` に新フィールド `DefaultAsync` を追加し shipped default を `true` に設定、profile 内のマーカー有無に関わらず全モジュールが監視付き Runspace 経路で実行される。`__ASYNC__` マーカーは idempotent ON-only no-op として後方互換保持。kill switch `Enabled=false` は引き続き優先。`DefaultAsync` フィールド欠損時のフォールバックは `$false`（旧 config 互換）。詳細は [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md)
   - 3.2.5（PATCH、2026-05-10）: Pester v5 テストスイート Phase 0-4（kernel ユニットテスト）整備 + integrity fix。**production code 不変**、tests/ ディレクトリと dev/run_tests.ps1 の追加のみ
   - 3.2.4（PATCH、2026-05-10）: Verbose stream capture（`cmdlet.verbose` イベント、デフォルト ON、`kernel/json/verbose_capture.flag` git tracked）追加 + Telemetry 拡張（csv.load / profile context / host info / `_kernel.jsonl` チャネル）。`KERNEL_API.md` L3 を release sync 対象に追加
   - 3.2.3（PATCH、2026-05-09）: AI 開発コーパス用 Telemetry レイヤ新設（公開 API 不変、`dev/TELEMETRY_INTERNAL.md` で内部設計を明文化）+ Status Monitor 起動診断ログ追加 + log_uploader v1.0.0 → v1.1.0（`/XD logs\telemetry` 除外）
@@ -196,3 +198,4 @@ dev/check_version.ps1
 - `dev/template/VERSION`: `0.1.0`（次の新規モジュール開始版）
 - `dev/template/REQUIRES_KERNEL`: 現行カーネルに同期
 - 標準モジュール 60 件 / 拡張モジュール 16 件（kernel 3.2.5 期で `windows_feature_config` v0.1.0 / `server_feature_config` v0.1.0 を追加、`bloatware_export` を retire）。baseline `1.0.0` / `2.0.0`（一部例外: pianist `1.6.0`, evidence_config `1.7.0`, sysprep_config `1.1.0`, domain_join `2.0.0` 等）
+- profile テンプレート: `profiles/easy_template/easyprofile.csv` が kernel 3.3.1 期に `Enabled,Script,Description` → `Enabled,Script,Description,Segment` の 4 列へ拡張（commit `5525728`、KERNEL_VERSION 据え置き）。詳細は [fabriq__profiles__easyprofile.md](fabriq__profiles__easyprofile.md)

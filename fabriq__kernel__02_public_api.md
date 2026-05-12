@@ -1,5 +1,9 @@
 # カーネル公開 API（モジュールから利用可能なサーフェス）
 
+> **対象**: fabriq / kernel 公開 API
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
+
 `kernel/KERNEL_API.md` で公式宣言されているサーフェスの解説。fabriq モジュールが安全に依存できる関数・グローバル変数・環境変数・契約の全集合。
 
 ---
@@ -139,7 +143,7 @@ SELECTED_PRINTER_<N>_PORT
 | マーカー | 動作 | 導入版 |
 |---|---|---|
 | `__AUTOPILOT__` | 以降を AutoPilot 化（Y/N 自動承認 + 指定 wait 秒のモジュール間スリープ） | 2.0.0 |
-| `__ASYNC__` | 以降を Runspace 実行に切り替え。Status Monitor の Skip ボタン or `async_config.json` の `DefaultTimeoutSec` で強制中断可能 | 2.1.0 |
+| `__ASYNC__` | 以降を Runspace 実行に切り替え。Status Monitor の Skip ボタン or `async_config.json` の `DefaultTimeoutSec` で強制中断可能。**3.3.0 で意味論拡張**: shipped default `DefaultAsync=true` 時は全モジュールが既に async のため idempotent ON-only no-op（後方互換） | 2.1.0 / 3.3.0 |
 | `__RESTART__` | Windows 再起動 → RunOnce 経由で resume | 2.0.0 |
 | `__REEXPLORER__` | Explorer 再起動（HKCU レジストリ変更の即時反映等） | 2.0.0 |
 | `__AUTO_to_<User>__` | `autologon_config` を該当 User で呼び出し | 2.0.0 |

@@ -1,6 +1,6 @@
 # Fabriq Series — Unified Documentation Index
 
-**Last updated**: 2026-05-10
+**Last updated**: 2026-05-12
 **Layout**: Flat. すべての md は本リポジトリのトップ直下に配置されている（`<project>__<category>__<name>.md` 形式）。
 **LM 投入**: NotebookLM 等にこのフォルダ全体を投入すれば、ファイル名のプレフィックスでプロジェクト判別が完結する。
 
@@ -12,7 +12,7 @@
 
 | プロジェクト | 接頭辞 | ファイル数 | 対象バージョン情報源 |
 |---|---|---|---|
-| fabriq | `fabriq__` | 111 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.2.5 + per-module `VERSION`（commit `fed181a`、2026-05-10） |
+| fabriq | `fabriq__` | 112 | `E:\fabriq\kernel\KERNEL_VERSION` = 3.3.1 + per-module `VERSION`（commit `5525728`、2026-05-12） |
 | fabriq_evidence_manager | `fabriq_evidence_manager__` | 22 | `FabriqEvidenceManager.csproj <Version>` = 3.8.1 |
 | fabriq_studio | `fabriq_studio__` | 19 | `FabriqStudio.csproj` に `<Version>` 未設定 → git short hash `3897c6e` |
 | tonebender | `tonebender__` | 0 (未着手) | git short hash |
@@ -20,7 +20,7 @@
 
 ---
 
-## fabriq (111 files)
+## fabriq (112 files)
 
 ### overview (1)
 
@@ -147,9 +147,10 @@
 - `fabriq__modules__windows_update.md`
 - `fabriq__modules__winget_install.md`
 
-### profiles (1)
+### profiles (2)
 
 - `fabriq__profiles__00_profiles_overview.md`
+- [fabriq__profiles__easyprofile.md](fabriq__profiles__easyprofile.md) — EasyProfile（軽量 AutoPilot ランナー）の使い方・CSV スキーマ（kernel 3.3.1 期に Segment 列追加）
 
 ### troubleshooting (2)
 

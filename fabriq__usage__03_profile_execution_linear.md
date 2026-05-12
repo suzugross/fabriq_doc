@@ -1,8 +1,8 @@
 # Profile Linear 実行と個別モジュール実行
 
 > **対象**: fabriq / usage
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 ダッシュボード `Profiles` タブの **`[Execute Profile]`（Linear）** と `Modules` タブの **`[Execute]`（個別実行）** の使い分けと動作詳細。state-aware 部分実行は別 doc（[fabriq__usage__04_flexprofile_dashboard.md](fabriq__usage__04_flexprofile_dashboard.md)）。
 
@@ -258,6 +258,8 @@ DarkCyan 色のメッセージ。Status Monitor 別ウィンドウで `[Skip]` �
 
 `async_config.json` の `DefaultTimeoutSec` で自動タイムアウトも可能。`Enabled: false` で全体無効化（同期実行に戻す）。
 
+**kernel 3.3.0 以降の重要な変更（後方互換）**: `async_config.json` に新フィールド `DefaultAsync` が追加され、shipped default は `true`。**profile に `__ASYNC__` を書かなくても全モジュールが既定で監視付き Runspace 経路を通る**。マーカーは idempotent ON-only no-op として残置されており、既存 profile はそのまま動作する。マーカーを明示的に置くのは「`DefaultAsync=false` 環境への portable な profile」「読み手に async が効く範囲を示したい self-documenting 目的」のとき。詳細は [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md)。
+
 ### `__REEXPLORER__`
 
 ```csv
@@ -409,7 +411,7 @@ Last batch: <X> OK  <Y> NG
 
 ### 個別実行（Modules タブ）が profile より速いはずなのに遅い
 
-`__ASYNC__` は profile 経由でしか効かない。Modules タブは常に `Invoke-SafeCommand` 同期実行。長時間モジュールは profile に組み込んで `__ASYNC__` で囲む方が中断可能性が高い。
+async 経路（`Invoke-SafeCommandAsync` + Status Monitor の `[Skip]` / timeout）は **profile 経由でしか効かない**。Modules タブの個別実行は常に `Invoke-SafeCommand` の同期実行で、kernel 3.3.0 の `DefaultAsync=true` 既定 ON 化対象外（EasyProfile も同様、別バイパス経路）。長時間モジュールやハング懸念のあるモジュールは profile に組み込んで実行する方が `[Skip]` ボタンで中断可能。3.3.0 以降は profile 経由なら `__ASYNC__` マーカーを書かなくても既定で async 経路が効く（マーカーは ON-only no-op として残置、後方互換）。
 
 ### 完走したのに HTML チェックリストが生成されない
 

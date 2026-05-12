@@ -1,8 +1,8 @@
 # profiles カタログ
 
 > **対象**: fabriq / profiles
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 `e:/fabriq/profiles/` には fabriq の Profile (= モジュール実行手順書 CSV) のサンプル / テンプレートが収められています。実運用では各 Profile は **現場固有の編集物**であり、`framework_overlay_rules.json` により `profiles/` ツリー全体が overlay 時に **保持対象 (preserved)** に指定されています。つまりここに置かれているファイルは「あくまで出発点」で、実際のキッティング案件では現場で書き換えられて使われます。
 
@@ -14,7 +14,7 @@ Profile CSV の **必須列は `Order,ScriptPath,Enabled` の 3 列**（`KERNEL_
 
 - `__RESTART__` — 再起動を挿入。fabriq は再起動後 RunOnce で resume する
 - `__AUTOPILOT__` — AutoPilot モード ON、`Description` に `WaitSec=N` を書くと wait 秒数指定可
-- `__ASYNC__` — このマーカー以降のモジュールを非同期 (Runspace) 実行に切替
+- `__ASYNC__` — このマーカー以降のモジュールを非同期 (Runspace) 実行に切替。**kernel 3.3.0 以降**は shipped default `DefaultAsync=true` のため全モジュールが既定で async、本マーカーは idempotent ON-only no-op（後方互換）。詳細は [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md) / [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md)
 
 ## 同梱されている Profile
 
@@ -116,10 +116,12 @@ Profile CSV の **必須列は `Order,ScriptPath,Enabled` の 3 列**（`KERNEL_
 ```
 easyprofile.bat       管理者昇格 + powershell -File easyprofile.ps1
 easyprofile.ps1       AutoPilot 軽量ランナー (history なし / evidence なし / checklist なし)
-easyprofile.csv       Enabled,Script,Description の 3 列 (Order なし、上から順実行)
+easyprofile.csv       Enabled,Script,Description,Segment の 4 列 (Order なし、上から順実行)
 ```
 
 **シナリオ**: fabriq の正規ダッシュボードを通さずに「**選択された数モジュールだけ即実行する 1-shot ランナー**」を作るためのテンプレート。`profiles/easy_profile_<X>/` という規約で複数並べて運用できる。Hostname 設定 / ローカルユーザー作成 / 削除のような単発タスクを、エビデンス無しで素早く流すユースケース。デフォルト 3 行はすべて Enabled=0 で安全側。
+
+**`Segment` 列（kernel 3.3.1 期に追加）**: 任意。値があれば該当モジュール実行直前に `$env:FABRIQ_SEGMENT` として export され、Linear/Flex と同じ env-var contract で Segment-aware モジュール（`reg_hklm_config` / `app_config` / `acl_config` / `test_harness_config` 等）の `_list.csv` を絞り込める。`finally` で `$null` クリアされるため後続行へ漏れない。詳細仕様（CSV ロード経路の `Import-CsvSafe` 採用理由、Segment 表示ラベル `[seg:<value>]` の付与、後方互換ガード）は [fabriq__profiles__easyprofile.md](fabriq__profiles__easyprofile.md) を参照。
 
 ## 運用ルール
 

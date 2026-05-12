@@ -1,8 +1,8 @@
 # Evidence と Quick Actions
 
 > **対象**: fabriq / usage
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 profile / モジュール実行に伴う成果物（evidence）の出力場所と、ダッシュボード Settings タブの Quick Actions 群（CSV Editor / Windows Update / Refabriq / System Launcher / And More...）の使い方。
 
@@ -289,7 +289,7 @@ CentreCOM 風の濃紺背景に Surkitinisme（シュルキティニスム）の
 ### 役割
 
 - `kernel/json/status.json` を polling して進捗 / PC 情報 / ART pulse 等を別ウィンドウで可視化
-- `__ASYNC__` 中のモジュールに対する `[Skip]` ボタン提供（`kernel/json/skip_request.flag` flag ファイル経由）
+- async runspace 経路のモジュールに対する `[Skip]` ボタン提供（`kernel/json/skip_request.flag` flag ファイル経由）。kernel 3.3.0 で `async_config.json.DefaultAsync=true` を shipped default 化したため、**既定環境では全モジュールが async 経路に乗り `[Skip]` ボタンが常時有効**（マーカー `__ASYNC__` の有無に関わらず profile 経路に限る、Modules タブ単発実行は対象外）
 - `Write-StatusFile` が atomic write でステータス更新（fabriq main プロセス → status_monitor が読み取り）
 
 ### ART pulse

@@ -1,8 +1,8 @@
 # オーケストレーション層
 
 > **対象**: fabriq / kernel
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 カーネルがモジュールをどう順序付けて呼び出し、結果を集約するか。`main.ps1` 内の `Invoke-BatchExecution` / `Invoke-FlexProfileLoop` / `Invoke-WindowsUpdateLoop` がコア（`common.ps1` ではなく `main.ps1` に集約されている）。
 
@@ -89,6 +89,9 @@ foreach $module in $SelectedModules:
       b. _Segment があれば $env:FABRIQ_SEGMENT を立てる
       c. _IsAsync && async_config.Enabled なら Invoke-SafeCommandAsync、
          さもなくば Invoke-SafeCommand
+         （kernel 3.3.0 以降は async_config.DefaultAsync=true が shipped default のため、
+          _IsAsync は Resolve-ProfileModules が profile 1 行目から全モジュールに attach する
+          → 既定で全行が Invoke-SafeCommandAsync 経路を通る）
       d. 上記 env を解除
       e. result.Status が Error/Partial の場合:
          - Invoke-ErrorNotification（3-tone beep + console foreground）
@@ -120,7 +123,7 @@ end foreach
 
 ## Invoke-FlexProfileLoop（FlexProfile sub-loop）
 
-`main.ps1` 内、L561〜。FlexProfile dashboard と Invoke-BatchExecution の橋渡し。
+`main.ps1` 内、L617〜。FlexProfile dashboard と Invoke-BatchExecution の橋渡し。
 
 ### イベント駆動アクション一覧
 
@@ -166,7 +169,7 @@ profile CSV (Order, ScriptPath, Enabled, Description, Segment, ErrorMode, Group)
 ### 特殊マーカー処理
 
 - `__AUTOPILOT__`: ValidModules には入れず、戻り値の `AutoPilot` フラグだけ立てる
-- `__ASYNC__`: 同様に list には入れず、以降のモジュールに `_IsAsync=$true` を打つ sticky フラグ（プロファイル末尾まで継続）
+- `__ASYNC__`: 同様に list には入れず、以降のモジュールに `_IsAsync=$true` を打つ sticky フラグ（プロファイル末尾まで継続）。**kernel 3.3.0 以降**: `async_config.json.DefaultAsync=true`（shipped default）のとき `$asyncMode` 初期値が profile 1 行目から `$true` のため、マーカーは idempotent ON-only no-op として動作（既存 profile への後方互換）
 - `__AUTO_to_<User>__`: `autologon_config` モジュールを参照し、`_AutoLogonUser` を attach、MenuName を `[AUTO:User] AutoLogon Configuration` に書き換え
 - `__RESTART__` / `__REEXPLORER__`: 専用 PSCustomObject を生成し、`_IsRestart` / `_IsReexplorer` を立てる
 - 通常 ScriptPath: AllModules リストから `RelativePath` 完全一致で探索、見つかれば copy + Order/Segment/ErrorMode/Group を attach

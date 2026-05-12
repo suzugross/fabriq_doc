@@ -1,8 +1,8 @@
 # fabriq 変更履歴（注釈付き要約）
 
 > **対象**: fabriq / 全体（kernel + 76 modules）
-> **対象バージョン**: 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION` + `E:\fabriq\CHANGELOG.md`、commit `fed181a`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象バージョン**: 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION` + `E:\fabriq\CHANGELOG.md`、commit `5525728`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 `E:\fabriq\CHANGELOG.md` の **公式変更履歴** を、ドキュメント読者向けに **テーマ別に整理した注釈付き要約** にしたもの。原典を置き換える意図はない（行数で 2500+ 行）。本書は**重要転換点を素早く把握する**ためのオーバービュー。
 
@@ -12,7 +12,7 @@
 
 | プロジェクト | 版管理 | 値 |
 |---|---|---|
-| **kernel** | SemVer（`kernel/KERNEL_VERSION`） | 3.2.5（最新） |
+| **kernel** | SemVer（`kernel/KERNEL_VERSION`） | 3.3.1（最新） |
 | **各モジュール** | SemVer（`modules/<kind>/<name>/VERSION`） | 個別、kernel と独立 |
 | **REQUIRES_KERNEL** | 各モジュールの最小要求 kernel 版 | `modules/<kind>/<name>/REQUIRES_KERNEL` |
 | **CHANGELOG カテゴリ** | Keep a Changelog 1.1.0 準拠 | Added / Changed / Deprecated / Removed / Fixed / Security |
@@ -20,6 +20,41 @@
 ---
 
 ## 主要マイルストーン
+
+### profiles/easy_template — EasyProfile Segment 列対応（2026-05-12、KERNEL_VERSION 据え置き 3.3.1）
+
+`profiles/easy_template/easyprofile.csv` のヘッダを `Enabled,Script,Description` → `Enabled,Script,Description,Segment` の 4 列へ拡張、`easyprofile.ps1` で行ごとに `$env:FABRIQ_SEGMENT` を export / `finally` で clear するよう実装。Linear/Flex と同じ env-var contract（`kernel/main.ps1:441-465`）で EasyProfile からも Segment-aware モジュール（`reg_hklm_config` / `app_config` / `acl_config` / `test_harness_config` 等）の `_list.csv` を per-row で絞り込める。
+
+**実装メモ**: profile 級 CSV を `Import-ModuleCsv` で読むと、CSV 自身が `Segment` 列の strict-match で絞られてしまう（`kernel/common.ps1:1063-1080` の挙動、`_list.csv` 用途には正しいが Profile では行ごとに違う Segment を意図するため不整合）。これを避けるため CSV ロードを `Import-CsvSafe` + `Test-CsvColumns` + 手動 Enabled フィルタの組み合わせに切り替え（Linear path `Resolve-ProfileModules` が `Import-Csv` を直接呼ぶのと同じ路線）。Segment 列を持たない既存 CSV は後方互換で動作（`$entry.PSObject.Properties.Name -contains 'Segment'` ガード）。事前表示および実行バナーには `[seg:<value>]` ラベルを併記。
+
+**運用への影響**: `easy_<案件名>/` を運用している現場は CSV ヘッダ末尾に `,Segment` を追加するだけで Segment 機能が利用可能。追加しなくても従来通り動く。公開 API 不変、KERNEL_VERSION 据え置き。詳細は [fabriq__profiles__easyprofile.md](fabriq__profiles__easyprofile.md)。
+
+### kernel 3.3.1 — AutoConfirmMode async inject regression fix（2026-05-12）
+
+3.3.0 で `DefaultAsync` 既定 ON 化により全モジュールが child runspace 経路を通るようになった結果、`Invoke-SafeCommandAsync` の inject hashtable に含まれていなかった `$global:AutoConfirmMode` が child 側で common.ps1 init 既定値 `$false` のまま残り、FlexProfile `[Run This]`（RunSingle）経由の `Confirm-ModuleExecution` Y/N プロンプトが auto-confirm されず Read-Host へ落ちる regression が顕在化。
+
+**バグの来歴**: kernel 3.1.0 で `$global:AutoConfirmMode` が `KERNEL_API.md §2` に公開グローバルとして宣言された時点から inject 漏れがあった dormant bug。3.2.5 以前は RunSingle が sync 経路で同一スコープを共有していたため無症状、3.3.0 で全モジュール async 化した瞬間に発現した。
+
+**修正**: inject hashtable に `AutoConfirmMode = $global:AutoConfirmMode` を 1 行追加。Run Batch / Run Group / Linear は `AutoPilotMode` が inject 済みのため無影響、影響範囲は `Confirm-ModuleExecution` を呼ぶ 108 モジュールの FlexProfile `[Run This]` 経由実行のみ。
+
+**運用への影響**: 3.3.0 を当てた環境では `reg_hkcu_config` の「Apply the above registry changes?」など、`Confirm-ModuleExecution` を呼ぶモジュールを FlexProfile `[Run This]` で実行すると Y/N プロンプトが復活する症状が出ていた。3.3.1 で解消、3.3.0 をスキップして 3.3.1 を直接当てれば該当現象は出ない。
+
+### kernel 3.3.0 — DefaultAsync 既定 ON 化（2026-05-12）
+
+`__ASYNC__` マーカー意味論を後方互換に拡張した MINOR リリース。**マーカーの書き忘れによる安全網（Skip ボタン / timeout）無効化の常時防止** を狙う defensive default 化。
+
+**変更点**:
+
+- `kernel/json/async_config.json` に新フィールド `DefaultAsync` を追加、shipped default を `true` に設定
+- `Get-FabriqAsyncConfig` の返却 PSCustomObject に `DefaultAsync` プロパティ追加。config 欠損時の fallback は `$false`（旧 config 互換、silent な async 化を防ぐ安全側）
+- `Resolve-ProfileModules` の `$asyncMode` 初期値を `$false` ハードコードから `$asyncEnabledGlobally -and [bool]$asyncCfg.DefaultAsync` 算出へ変更
+- `kernel/main.ps1` バナー `Fabriq ver3.2` → `Fabriq ver3.3`（タイトル更新）
+- `KERNEL_API.md §4.2`: `__ASYNC__` マーカーを「`DefaultAsync=true` 時は idempotent ON-only no-op」と再定義、§8 に 3.3.0 エントリ追加
+- `tests/kernel/Resolve-ProfileModules.tests.ps1`: `DefaultAsync` 既定 ON 挙動と kill switch 優先性を検証する 3 ケース追加
+
+**優先順位**: `Enabled=false`（kill switch、全モジュールを同期に降格） > `DefaultAsync=true`（全モジュール async） > `__ASYNC__` マーカー（マーカー以降を async）。
+
+**運用への影響**: profile 側を書き換える必要なし。既存の `__ASYNC__` マーカー入り profile はそのまま動作（マーカーが no-op になるだけで結果は同じ）。マーカー無し profile も全モジュールが Runspace 経路で実行されるため、Status Monitor の Skip ボタンと `DefaultTimeoutSec` が常時有効。詳細は [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md) / [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md)。
 
 ### kernel 3.2.5 — Pester v5 テストスイート整備（2026-05-10）
 
@@ -204,12 +239,14 @@ kernel と独立したペースで **半年弱で 1.0 → 1.6** に到達した�
 
 | 版 | 修正 | 影響 |
 |---|---|---|
+| 3.3.1 | `Invoke-SafeCommandAsync` の inject に `AutoConfirmMode` 追加 | FlexProfile `[Run This]` の Y/N 自動承認 regression を解消（3.3.0 と組で当てる） |
+| 3.3.0 | `async_config.json.DefaultAsync=true` を shipped default 化 | **profile に `__ASYNC__` 不要、全モジュールが既定で Runspace 経路 + Skip/timeout 安全網** |
 | 3.1.7 | MenuName fallback の厳格化 | **同名モジュールが複数ある profile** での状態混線を防止 |
 | 3.1.4 | Frex Complete ボタンの判定 | unchecked 行の Error も **必ずカウント**（事実保存） |
 | 3.1.3 | per-Order tracking + single-rerun NotRun fix | 同 Order の再実行で旧結果を上書き |
 | 3.0.0 | `Encrypted` 列廃止 → `ENC:` インライン | 2.x の encrypted hostlist は **再暗号化必須** |
 | 2.2.0 | profile_csv schema 固定化 | 列名の自由度低下、ただし将来の互換性確保 |
-| 2.1.0 | `__ASYNC__` マーカー導入 | profile CSV で `__ASYNC__` 行以下が並列実行される |
+| 2.1.0 | `__ASYNC__` マーカー導入 | profile CSV で `__ASYNC__` 行以下が Runspace 化される（3.3.0 で no-op 化、後方互換保持） |
 
 ---
 
@@ -231,3 +268,4 @@ kernel と独立したペースで **半年弱で 1.0 → 1.6** に到達した�
 ## 変更履歴
 
 - 2026-05-07 初版作成（kernel 3.2.2 commit `e513cf1` を対象、CHANGELOG.md 全期間（2.x 系〜3.2.2 + Pianist 1.0〜1.6 + extended/pianist Unreleased セクション）をテーマ別に注釈）
+- 2026-05-12 kernel 3.3.0（DefaultAsync 既定 ON 化）/ 3.3.1（`AutoConfirmMode` async inject regression fix）/ profiles/easy_template の Segment 列対応 を追記（commit `5525728` を対象）

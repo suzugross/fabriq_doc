@@ -1,8 +1,8 @@
 # 状態ファイルとレジューム異常のトラブルシューティング
 
 > **対象**: fabriq / kernel + windows_update + extended/pianist
-> **対象バージョン**: 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`、commit `5525728`、2026-05-12）
+> **ドキュメント更新日**: 2026-05-12
 
 fabriq は **複数の状態ファイル**で実行コンテキストを跨いだ継続性を担保している。これらのファイルが想定外の状態（残存・破損・古いバージョン）になったとき、何が観測され、どう正規化するかをまとめた運用ガイド。
 
@@ -24,7 +24,7 @@ fabriq は **複数の状態ファイル**で実行コンテキストを跨い�
 | `art_pulse.txt` | StatusMonitor 用の一時 metric（CPU/メモリ表示） | 数秒 | StatusMonitor 終了で残存することあり |
 | `skip_request.flag` | StatusMonitor → kernel への中断要求 | 検知されるまで | kernel が読んだ瞬間に削除 |
 | `silence.flag` | サウンド抑制フラグ | 設定中のみ | 手動 |
-| `async_config.json` | 非同期実行のセグメント設定 | profile 期間 | profile 終了 |
+| `async_config.json` | async 経路の設定（`Enabled` kill switch / `DefaultAsync` 既定 ON 化 / `DefaultTimeoutSec` / `PollIntervalMs` / `SkipFlagPath`）。git tracked、shipped default は `Enabled=true` + `DefaultAsync=true` | 永続（git tracked） | 通常は触らない。緊急時に `Enabled=false` で全モジュール同期実行に降格 |
 
 加えて:
 
