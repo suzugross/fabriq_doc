@@ -1,8 +1,8 @@
 # Evidence と Quick Actions
 
 > **対象**: fabriq / usage
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 profile / モジュール実行に伴う成果物（evidence）の出力場所と、ダッシュボード Settings タブの Quick Actions 群（CSV Editor / Windows Update / Refabriq / System Launcher / And More...）の使い方。
 
@@ -46,6 +46,7 @@ profile / モジュール実行に伴う成果物（evidence）の出力場所�
         │   ├── 001_<ModuleName>_Success.png
         │   ├── 002_<ModuleName>_Error.png
         │   └── ...
+        ├── gyotaku/                ← Execution Toolbar [Gyotaq] 手動スクショ出力（PNG、§10）
         ├── bitlocker/              ← bitlocker_config モジュール出力
         │   └── {pcName}_C.txt
         ├── checklist/              ← Complete-ProfileExecution 出力
@@ -200,11 +201,14 @@ profile に `__WINDOWS_UPDATE__` のような特殊マーカーは無く、**WU 
 ### `[Refabriq]`
 
 ```powershell
-Stop-StatusMonitor -MonitorProcess $global:FabriqStatusMonitorProcess
+Hide-ExecutionToolbar
+Remove-StatusFile
 Start-Process Fabriq.exe -WorkingDirectory $fabriqRoot
 Stop-Transcript
 exit 0
 ```
+
+旧 kernel では別プロセスの Status Monitor を `Stop-StatusMonitor` で落としていたが、in-process Execution Toolbar へ移行後は `Hide-ExecutionToolbar` でツールバー Runspace を閉じ、`Remove-StatusFile` で status.json を後始末してから `Fabriq.exe` を再起動する（`kernel/main.ps1` L2200-2205）。
 
 **Fabriq.exe プロセス自体を再起動する** 強制リフレッシュ手段。「PID 入れ替え相当の cold boot」になり、起動時のすべての初期化が再走する。
 
@@ -280,32 +284,38 @@ CentreCOM 風の濃紺背景に Surkitinisme（シュルキティニスム）の
 
 ---
 
-## 10. Status Monitor（別プロセス）
+## 10. Execution Toolbar（in-process ステータス表示 + Quick Action ボタン）
 
-`Start-StatusMonitor`（`common.ps1` L3782）が session 確立直後に起動する**別プロセスのサブモニタ**。
+実行中のステータス表示と `[Skip]` / `[Gyotaq]` ボタンは、kernel の `powershell.exe` 内の**専用 STA Runspace で動く in-process フローティングツールバー**「Execution Toolbar」が担う（実装: `apps/fabriq_operator/lib/execution_toolbar.ps1`）。
 
-`Start-Process powershell.exe -ArgumentList "-File", "kernel/ps1/status_monitor.ps1"` で隔離プロセスとして起動し、PID を `$global:FabriqStatusMonitorProcess` に記録。
+旧 kernel には別プロセス型の Status Monitor（`kernel/ps1/status_monitor.ps1` を hidden な別 PowerShell プロセスで起動し `status.json` を polling する方式）が存在したが、**kernel 3.4.0 で非推奨化・3.5.0 で物理削除**された。関連関数 `Start-StatusMonitor` / `Stop-StatusMonitor` / `Show-MonitorFailureDialog` も削除済み（`kernel/KERNEL_API.md` §8 [3.5.0]）。別プロセスを spawn しないため、Defender / ASR の子プロセス制限を受けない（`execution_toolbar.ps1` L1-25）。詳細は [fabriq__kernel__06_status_monitor.md](fabriq__kernel__06_status_monitor.md) を参照。
 
-### 役割
+### `[Skip]` ボタン（async モジュールの強制中断）
 
-- `kernel/json/status.json` を polling して進捗 / PC 情報 / ART pulse 等を別ウィンドウで可視化
-- async runspace 経路のモジュールに対する `[Skip]` ボタン提供（`kernel/json/skip_request.flag` flag ファイル経由）。kernel 3.3.0 で `async_config.json.DefaultAsync=true` を shipped default 化したため、**既定環境では全モジュールが async 経路に乗り `[Skip]` ボタンが常時有効**（マーカー `__ASYNC__` の有無に関わらず profile 経路に限る、Modules タブ単発実行は対象外）
-- `Write-StatusFile` が atomic write でステータス更新（fabriq main プロセス → status_monitor が読み取り）
+`Get-FabriqAsyncConfig` の `SkipFlagPath`（既定 `.\kernel\json\skip_request.flag`、`common.ps1` L1604）に「`requested at <ts>`」を書き込む（`execution_toolbar.ps1` L1042-1066）。async runspace の polling loop がこのフラグを検出して Runspace を停止する。
+
+**`__ASYNC__` マーカ以降のモジュールにのみ有効**（ボタンが status を「effective only for async modules」と表示）。kernel 3.3.0 で `async_config.json` の `DefaultAsync=true` が shipped default 化されたため、**既定環境では各モジュールが async 経路に乗り `[Skip]` が機能する**。
+
+### `[Gyotaq]` ボタン（手動スクリーンショット）
+
+旧「Manual Screenshot」の後継。フォームを 300ms 退避 → `Save-Screenshot -BaseDir <EvidenceBasePath>\gyotaku`（`EvidenceBasePath` 未設定時は `<fabriqRoot>\evidence\gyotaku`）→ フォーム復帰（`execution_toolbar.ps1` L1068-1112、`Save-Screenshot` は `common.ps1` L4787）。保存先の `gyotaku/` サブディレクトリは §1 の evidence ベースパス配下に作られ、operator 任意のタイミングで PNG を採取する手動経路となる。
+
+### ボタン活性制御
+
+`[Skip]` / `[Gyotaq]` はともに **`ExecutionState='Running'` のときだけ活性化**され、`Idle` では無効化される（`execution_toolbar.ps1` L1160-1161）。
 
 ### ART pulse
 
-`kernel/json/art_pulse.txt` に `Show-*` 系関数が呼ばれるたびに +1 される動作鼓動カウンタ。Status Monitor がこれを polling して「fabriq が動いている」表示に変換する。`kernel/txt/silence.flag` を置くと演出抑制。
-
-`Show-Manifesto` 経由で表示される `art_sentences.txt` のランダム一文も Status Monitor で表示される。
+`kernel/json/art_pulse.txt` に `Show-*` 系関数が呼ばれるたびに +1 される動作鼓動カウンタ。Execution Toolbar の ART パネルがこれを polling して「fabriq が動いている」表示に変換する。`kernel/txt/silence.flag` を置くと演出抑制（`art_display.ps1` 削除後、タイピング描画も Execution Toolbar に移植済み）。`art_sentences.txt`（`kernel/txt/art_sentences.txt`）のランダム一文もここで描画される。
 
 ### 終了
 
-`Stop-StatusMonitor` が `Stop-Process -Id $PID` で別プロセスを終了する：
+`Hide-ExecutionToolbar` がツールバー Runspace を閉じる：
 
-- `[Refabriq]` 押下時
-- `Exit-Fabriq`（main.ps1 終了処理）
+- `[Refabriq]` 押下時（`main.ps1` L2202）
+- `Exit-Fabriq`（main.ps1 終了処理）。`Remove-StatusFile` → `Hide-ExecutionToolbar` の順でクリーンアップする（`common.ps1` L4323-4341）
 
-Status Monitor は **fabriq main の補助モニタ**であり、本体機能には影響しない（無くても fabriq は動く）。`silence.flag` 置きで非表示化可能。
+Execution Toolbar は **fabriq main の補助表示**であり、本体機能には影響しない（無くても fabriq は動く）。`silence.flag` 置きで演出を抑制できる。
 
 ---
 
@@ -341,15 +351,11 @@ Status Monitor は **fabriq main の補助モニタ**であり、本体機能に
 
 詳細は [fabriq__modules__log_uploader.md](fabriq__modules__log_uploader.md)。
 
-### Status Monitor 別ウィンドウが落ちている
+### Execution Toolbar が表示されない
 
-`Stop-StatusMonitor` が呼ばれた後、または起動時に失敗した。fabriq main の動作には影響しないため放置可能。再起動するなら：
+Execution Toolbar は `Show-ExecutionToolbar`（`main.ps1` L1702）が起動時に専用 STA Runspace で生成する in-process ツールバー。fabriq main の動作には影響しないため、出ていなくても作業は継続できる。`silence.flag`（`kernel/txt/silence.flag`）が置かれていると ART 演出が抑制される。確実に再表示したい場合は `[Refabriq]` で `Fabriq.exe` を再起動する（`Show-ExecutionToolbar` が再走する）。
 
-```powershell
-Start-Process powershell.exe -ArgumentList "-File", "kernel/ps1/status_monitor.ps1"
-```
-
-を手動で実行（PID 管理が外れるが、目視確認用途なら十分）。
+旧バージョンの別プロセス型 Status Monitor（`kernel/ps1/status_monitor.ps1`）は kernel 3.5.0 で削除済みのため、当該ファイルやプロセスを手動起動する手順はもう存在しない。
 
 ### Refabriq 後に履歴が前回のまま見える
 

@@ -1,8 +1,8 @@
 # Profile CSV スキーマ契約
 
 > **対象**: fabriq / 契約（Profile CSV）
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 `KERNEL_API.md §4` で公式宣言。fabriq の最重要契約のひとつ。プロファイル CSV はキッティングシナリオを宣言する DSL であり、kernel と fabriq_studio の双方が依存する。
 
@@ -52,7 +52,7 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 
 ---
 
-## 特殊マーカー（5 種、kernel 3.0.0 で 4 種を破壊的削除）
+## 特殊マーカー（6 種、kernel 3.0.0 で 4 種を破壊的削除）
 
 ### 現行マーカー
 
@@ -62,6 +62,7 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 | `__ASYNC__` | 以降を Runspace 実行に切り替え。Status Monitor の Skip ボタン or `async_config.json` の `DefaultTimeoutSec` で強制中断可能。**kernel 3.3.0 で意味論拡張**: shipped default `DefaultAsync=true` 時は全モジュールが既に async のため、本マーカーは idempotent ON-only no-op（後方互換） | 2.1.0 / 3.3.0 |
 | `__RESTART__` | Windows 再起動 → RunOnce 経由で resume | 2.0.0 |
 | `__REEXPLORER__` | Explorer 再起動（HKCU レジストリ変更の即時反映等） | 2.0.0 |
+| `__GATE__` | 前進バリア（checkpoint）。直前ゲート〜本マーカーの窓に `Error`/`Partial` または Post-Apply Verification 失敗（`Verified=False`）のモジュールが残る間、本マーカー以降の Order の実行を拒否する。窓が解消すると解除。詳細は後述 | **3.6.0** |
 | `__AUTO_to_<User>__` | `autologon_config` を該当 User で呼び出し | 2.0.0 |
 
 ### 削除済みマーカー（kernel 3.0.0 / MAJOR）
@@ -110,6 +111,38 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 - ValidModules に `_IsReexplorer=$true` で入る
 - 検出時: `Stop-Process explorer -Force` → 最大 15 秒待機 → 自動復活しなければ `Start-Process explorer.exe`
 - HKCU レジストリ変更（reg_hkcu_config）後の即時反映に使う
+
+### `__GATE__`（前進バリア、kernel 3.6.0+）
+
+`__GATE__` は **実行されない checkpoint**。`Resolve-ProfileModules` の `specialMarkers` に `'__GATE__' = @{ MenuName='[GATE]'; Flag='_IsGate' }` として登録され（`common.ps1` L3678）、`_IsGate=$true` の専用 PSCustomObject として ValidModules に入るが、`Invoke-BatchExecution` のループでは何も走らせず `[GATE] checkpoint at Order N` を表示して `continue` する（`main.ps1` L458-462）。
+
+#### 守る窓と「unsatisfied」判定
+
+純関数 `Get-FabriqGateBarrier`（内部ヘルパ、`common.ps1` L3747-3811）が barrier の Order を返す。
+
+- Rows を Order 昇順に走査し、各 `__GATE__` は「直前ゲート（または profile 開始）〜自身」の窓を守る。
+- 窓内に `Status=Error`/`Partial`、または Post-Apply Verification 失敗（`VerifiedMap[Order] -eq $false`）のモジュールが 1 つでもあれば、その gate は **unsatisfied**。
+- 最初の unsatisfied gate の Order を barrier として返す（無ければ `$null`）。
+- `Success`/`Skipped`/`Cancelled`/`Pending`（未実行）は Status ではブロックしない。`Verified=$null`（検証非対応）/`$true` もブロックしない（`$false` のみ）。つまり「失敗は防ぐが省略は防がない」。
+- 決定的ソートのため Order 同値では 非ゲート(0) → ゲート(1) の二次キーを使い、同 Order のモジュールはそのゲートの窓の**内側**に数える（PS 5.1 の `Sort-Object` が非安定なため明示）。
+
+#### admission control（実行時拒否）
+
+- `Invoke-BatchExecution` が各モジュール実行直前に `Get-FabriqGateBarrier` を評価（`main.ps1` L470）。`barrier -ne $null` かつ `module.Order -ge barrier` なら `[GATE] Blocked: Order N (name) is beyond the unsatisfied gate at Order M. Resolve the failure(s) above and re-run.` を表示し（L473）、当該モジュールは **`Pending` 据え置き**（新ステータス記録なし）で `continue`（L469-475）。
+- 完走時、ブロックが発生していれば `[GATE] N module(s) blocked by an unsatisfied gate (Orders: ...)` を要約表示（`main.ps1` L709）。
+- **動的評価**: StatusMap は判定時点の状態（当該 run の蓄積 + session history）。`__RESTART__` 跨ぎも history 経由で保持されるため、フォワード実行の途中で発生した失敗でもゲートで止まる。
+
+#### ModuleResult 契約への影響
+
+ブロックされたモジュールは未実行（`Pending`）のまま据え置かれ、新ステータスは記録されない。**ModuleResult 契約は不変**。`__GATE__` を含まない既存 profile は挙動完全不変。
+
+#### FlexProfile dashboard のグレーアウト（UI は反映のみ）
+
+`flex_dashboard.ps1` が同じ `Get-FabriqGateBarrier` で barrier を計算する（L148）。enforcement の権威は kernel 側にあり、UI はその反映に過ぎない（L141）。
+
+- gate 行: 青タイント `ARGB(214,224,240)` + `Checked` セル ReadOnly + tooltip（`flex_dashboard.ps1` L453-456）。
+- barrier 以降の blocked 行: `Checked=false` + ReadOnly にし、`MenuName`/`Order` を灰色 `ARGB(150,150,150)` 表示、Select All からも除外（L463-468、L278）。
+- ただし `Status`/`Verified` バッジ色と `[Log]` ボタンは有効のまま残り、ブロックの原因となった失敗を operator が確認できる（L460-462）。
 
 ### `__AUTO_to_<User>__`
 

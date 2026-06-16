@@ -94,6 +94,8 @@ if (rules.SchemaVersion != SupportedSchemaVersion)   // 現行 1
 
 `includePaths` は **ファイル単体**または**ディレクトリ**を混在で指定できる。Service 側で `File.Exists` / `Directory.Exists` で分岐処理。
 
+> **注記（Deploy.bat）**: 上記 `includePaths` の `Deploy.bat` は fabriq 本体側で **kernel 3.6.0 (TM t-0042) で廃止・削除済み**（`E:\fabriq\CHANGELOG.md` [3.6.0] Removed / `E:\fabriq\Deploy.bat` は不在）。ただし `E:\fabriq\dev\framework_overlay_rules.json` の `bundles.kernel.includePaths` には entry が未整理のまま残存している（上記 JSON はその実ファイルを忠実にミラーしたもの）。Service 側は各 `includePath` を `File.Exists` で分岐するため、template 側に実体が無ければ単にコピーがスキップされ、更新処理への影響はない。
+
 ### `bundles.module`（ModuleBundleDef）
 
 ```json
@@ -297,7 +299,7 @@ public record FabriqUpdateRequest(
 
 `includePaths` の各エントリについて:
 
-- **ファイル単体**（`Fabriq.exe`/`Deploy.bat`/`README.md` 等）: そのまま 1 ファイルコピー（`excludeFilesKernelLevel` で除外チェック）
+- **ファイル単体**（`Fabriq.exe`/`README.md` 等）: そのまま 1 ファイルコピー（`excludeFilesKernelLevel` で除外チェック）。なお `Deploy.bat` も `includePaths` の entry として残存するが、fabriq 本体側で **kernel 3.6.0 (TM t-0042) で廃止・削除済み**のため template 側に実体が無く、`File.Exists` 分岐で skip される（前掲「注記（Deploy.bat）」参照）
 - **ディレクトリ**（`kernel/` 等）: `Directory.EnumerateFiles(srcDir, "*", SearchOption.AllDirectories)` で全ファイル走査、3 段階の除外フィルタ:
   1. `excludeDirsTopLevel` のディレクトリは丸ごとスキップ
   2. `excludeDirsRecursive` のディレクトリ（`profiles` 等）はパス中に出現すればスキップ

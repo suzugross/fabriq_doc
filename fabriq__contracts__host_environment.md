@@ -1,8 +1,8 @@
 # SELECTED_* / FABRIQ_* 環境変数契約
 
 > **対象**: fabriq / 契約（環境変数 + 公開グローバル）
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 `KERNEL_API.md §3` で公式宣言。fabriq の最重要 IPC（プロセス内コミュニケーション）。`hostlist.csv` の選択行から流れた値が、すべてのモジュールに共通して見える形で配信される。
 
@@ -49,6 +49,49 @@ ipaddress_config / network_profile_config / DNS 系モジュールが消費。
 | `SELECTED_PRINTER_<N>_PORT` | `Printer<N>Port` | ポート（`IP_192.168.1.50` / `192.168.1.50` / TCPIP_*）|
 
 `printer_driver_config` の register subroutine が消費。HTML チェックリストの Printer Cross-Check では Expected vs Actual で照合。
+
+### 自己参照トークン `__SELF__`（kernel 3.5.0+）
+
+hostlist.csv のセル値がリテラル文字列 `__SELF__` の場合、`Set-SelectedHostEnvironment` が **入室時（リスト選択 + パスフレーズ確定後）** に実行中 PC の live 値（`Get-CurrentPCInfo`）を **列の意味（列文脈）に従って解決** し、対応する `SELECTED_*` に流す。hostlist を持たないキッティングや端末調査（エビデンスファイル名に実 PC 名を載せたい等）を想定した「常に正しい」モード。
+
+#### 解決メカニズム
+
+```
+ホスト選択 + パスフレーズ確定
+   ↓
+Set-SelectedHostEnvironment
+   ├── SelectedHost の全列に __SELF__ が 1 つでもあれば Get-CurrentPCInfo を 1 回だけ実行
+   │   （__SELF__ が無いプレーンな hostlist は live 取得をスキップ＝オーバーヘッド 0）
+   ↓
+Resolve-HostValue が各セルを解決
+   ├── __SELF__  → その列の SelfKind に対応する live 値（解決不能なら空 + 警告）
+   ├── ENC:...   → パスフレーズ読込済みなら透過復号
+   └── それ以外  → リテラルそのまま
+   ↓
+解決後の具体値が SELECTED_* に baked される
+```
+
+- 解決は **入室時に 1 回だけ**。`__SELF__` トークン自体は resume state に到達せず、解決後の具体値だけが `SELECTED_*` に焼き付く（baked）。
+- `Save-ResumeState` はこの baked 済み具体値をスナップショットし、`Restore-HostEnvironment` がそのまま（verbatim）復元する。したがって **`__RESTART__` 跨ぎや以降の PC 名 / IP 変更には再追従しない**（設計通り）。
+
+#### 対応列（live 値の解決源あり）
+
+| hostlist.csv 列 | 解決される SELECTED_* | live 解決源（SelfKind） |
+|---|---|---|
+| `OldPCName` | `SELECTED_OLD_PCNAME` | ComputerName（実行中 PC のホスト名） |
+| `NewPCName` | `SELECTED_NEW_PCNAME` | ComputerName |
+| `EthernetIP` / `EthernetSubnet` / `EthernetGateway` | `SELECTED_ETH_*` | 現 Ethernet アダプタの IP / Subnet / Gateway |
+| `WifiIP` / `WifiSubnet` / `WifiGateway` | `SELECTED_WIFI_*` | 現 Wi-Fi アダプタの IP / Subnet / Gateway |
+| `DNS1`..`DNS4` | `SELECTED_DNS1`..`SELECTED_DNS4` | live DNS サーバ配列のスロット 1..4 |
+
+#### 非対応列・解決不能（いずれも空 + 警告）
+
+- **Pin / Printer 系**（`Pin`, `Printer<N>Name/Driver/Port`）は live 解決源を持たないため `__SELF__` を置いても解決できず、**空文字列 + 警告**（`Resolve-HostValue` が SelfKind 無しで呼ばれるため）。`SELECTED_KANRI_NO`（AdminID）も同様に解決源なし。
+- 対応列でも解決不能な場合（該当アダプタが存在しない・DNS サーバ数がスロット番号に満たない等）は **空文字列 + 警告**。
+
+#### SELECTED_* 契約は不変（モジュール透過）
+
+`SELECTED_*` の **名前 / 型 / 有無の契約は `__SELF__` の有無によって変わらない**。モジュール側は解決済みの具体値を読むだけで、トークンを意識する必要はない（カーネルが入室時に解決を完了させているため）。
 
 ---
 

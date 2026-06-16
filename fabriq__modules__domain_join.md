@@ -1,17 +1,17 @@
 # domain_join (Standard)
 
 > **対象**: fabriq / modules/standard/domain_join
-> **対象バージョン**: モジュール 2.0.0 / kernel 3.2.5（取得元: `E:\fabriq\modules\standard\domain_join\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `fed181a`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象バージョン**: モジュール 2.1.0 / kernel 3.6.0（取得元: `E:\fabriq\modules\standard\domain_join\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `0fca159`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 **カテゴリ**: Network
 **メニュー名**: Domain Join
-**VERSION**: 2.0.0  / **REQUIRES_KERNEL**: 2.0.0
-**Post-Apply Verification**: なし（再起動後に反映されるため、再起動前の検証では情報量が足りない）
+**VERSION**: 2.1.0  / **REQUIRES_KERNEL**: 2.0.0
+**Post-Apply Verification**: あり（`Add-Computer` 直後に `Win32_ComputerSystem` を読み返し `PartOfDomain` + `Domain` 一致を `-Verified` に反映。再起動はあくまで参加の完了でありメモリ上は即時反映される）
 **サブスクリプト**: なし
 
 ## 目的
-PC を Active Directory ドメインに参加させるモジュール。`Add-Computer` の薄いラッパで、**v2.0.0 で挙動が大きく変わった**: 内部でのリトライループ／GUI ダイアログを廃止し、失敗時は即座に `Status=Error` で返す **fail-fast 構造**に再設計された。リトライ・スキップ・ダイアログ表示の制御は profile CSV の `ErrorMode` 列および FlexProfile dashboard に **完全委譲** する。
+PC を Active Directory ドメインに参加させるモジュール。`Add-Computer` の薄いラッパで、**v2.0.0 で挙動が大きく変わった**: 内部でのリトライループ／GUI ダイアログを廃止し、失敗時は即座に `Status=Error` で返す **fail-fast 構造**に再設計された。リトライ・スキップ・ダイアログ表示の制御は profile CSV の `ErrorMode` 列および FlexProfile dashboard に **完全委譲** する。**v2.1.0** では実行頭の冪等性チェック（参加済み検出時 `Skipped` / 別ドメイン時 fail-closed `Error`）と join 後の Post-Apply Verification（`-Verified` 返却）が追加された。
 
 ## v2.0.0 の破壊的変更（v1.x からの移行）
 
@@ -36,9 +36,13 @@ PC を Active Directory ドメインに参加させるモジュール。`Add-Com
 
 ## 主要ステップ
 1. `domain.csv` から有効エントリ読み込み（最初の 1 行のみ使用）
-2. **DNS 接続事前チェック**: `Test-Connection -Count 2` で DNS サーバを bounded プローブ。不到達なら `Add-Computer` を試みずに `Status=Error` 即返却（診断メッセージ `"DNS unreachable: <ip>"` が dashboard に表示される）
-3. `Add-Computer -DomainName <DOMAIN> -Credential <PSCredential> -Force` 実行
-4. `Try/Catch` で例外を捕捉。成功なら `Status=Success`、例外なら `Status=Error`（即返却）
+2. **冪等性チェック**（DNS プローブより**前**に実施）: `Get-CimInstance Win32_ComputerSystem` を読み、`PartOfDomain` が真の場合:
+   - 現在のドメインが target と一致 → `Status=Skipped` + `-Verified $true` 即返却（`"Already joined to <domain>"`）。キッティング網が到達不能でも参加済みなら Skip する設計
+   - 別ドメインに参加済み → CSV と実機の矛盾とみなし fail-closed で `Status=Error`（`"Joined to different domain (current: <cur>, target: <target>)"`、現在名と target 名の両方を含める）
+3. **DNS 接続事前チェック**: `Test-Connection -Count 2 -Quiet` で DNS サーバを bounded プローブ。不到達なら `Add-Computer` を試みずに `Status=Error` 即返却（診断メッセージ `"DNS unreachable: <ip>"` が dashboard に表示される）
+4. `Add-Computer -DomainName <DOMAIN> -Credential <PSCredential> -Force` 実行
+5. **Post-Apply Verification**: `Win32_ComputerSystem` を読み返し `PartOfDomain` が真かつ `Domain` が target と一致するかを判定し `$verified` を算出。`Status=Success` を `-Verified $verified` 付きで返却
+6. `Try/Catch` で例外を捕捉。例外なら `Status=Error`（即返却、`"Domain join failed: <msg>"`）
 
 ## ErrorMode による失敗時挙動の制御
 
@@ -57,10 +61,10 @@ FlexProfile では失敗しても dashboard に戻るため Status バッジで 
 - **管理者権限必須**（`Add-Computer` 実行のため）
 - DNS サーバへのネットワーク接続が必須（Ping 失敗で **`Add-Computer` を試みない**）
 - ENC: 暗号化パスワードを使う場合は Fabriq 起動時のマスターパスフレーズ入力が必要
-- 反映は **再起動後**（Windows 仕様）。本モジュールは再起動はトリガーしない（後続 `restart_config` で集約再起動）
+- 参加状態は `Win32_ComputerSystem` に即時反映される（`PartOfDomain`/`Domain` がすぐ読める）。**完了**は再起動後だが本モジュールは再起動をトリガーしない（後続 `restart_config` で集約再起動）。Verification 表示の `(reboot pending)` はこの未完了状態を示す
 - v2.0.0 から内部 GUI ダイアログが消えたため、**operator 介入のキューポイントは ErrorMode 空欄時の `Show-AutoPilotErrorDialog` に集約**された
 
 ## 検証
-Post-Apply Verification は **未実装**。理由は、ドメイン参加状態は `Add-Computer` 実行直後ではなく **次回再起動後** に `(Get-WmiObject Win32_ComputerSystem).PartOfDomain = $true` として反映される Windows 仕様のため、再起動前のメモリ上で検証しても判定が曖昧になるため（`project_verification_exclusions.md` 整合）。`-Verified` は未渡しで Verified 列は空欄。
+Post-Apply Verification を **実装済み**。`Add-Computer` 成功直後に `Get-CimInstance Win32_ComputerSystem` を読み返し、`PartOfDomain` が真かつ `Domain` が target と一致する場合に `$verified = $true` を算出して `New-ModuleResult -Verified $verified` に渡す。ドメイン参加は `Win32_ComputerSystem` に即時反映され（再起動は参加の**完了**であって反映のトリガではない）、コンソールには一致時 `[VERIFIED] Member of <domain> (reboot pending)`、不一致時 `[VERIFY FAILED] PartOfDomain=... Domain=...` を表示する。
 
-`Add-Computer` の成否で結果判定し、再起動後の確認は手動または `evidence_config` の収集レポート（`§05 Domain / Azure AD Status`）で行う運用。
+冪等性チェックで参加済みを検出して `Skipped` を返す経路でも `-Verified $true` を付与する。`Add-Computer` が例外を throw した場合は catch ブロックで `Status=Error` を返し `-Verified` は付与しない。

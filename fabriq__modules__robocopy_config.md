@@ -1,12 +1,12 @@
 # robocopy_config (Standard)
 
 > **対象**: fabriq / modules/standard/robocopy_config
-> **対象バージョン**: モジュール 1.0.1 / kernel 3.2.5（取得元: `E:\fabriq\modules\standard\robocopy_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `fed181a`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象バージョン**: モジュール 1.1.0 / kernel 3.6.0（取得元: `E:\fabriq\modules\standard\robocopy_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `0fca159`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 **カテゴリ**: Maintenance
 **メニュー名**: Robocopy
-**VERSION**: 1.0.1  / **REQUIRES_KERNEL**: 2.0.0
+**VERSION**: 1.1.0  / **REQUIRES_KERNEL**: 3.5.0
 **Post-Apply Verification**: なし（ExitCode 判定のみ。実ファイル一致検証なし、`-Verified` 未渡し）
 **サブスクリプト**: なし
 
@@ -36,7 +36,7 @@ UNC 認証パスワード（`AuthPass`）を `net use` の **コマンドライ�
 - PSDrive `-Persist` 化: drive letter mapping を新規導入する副作用が現状仕様（drive letter 不使用）と乖離するため見送り
 - `WNetAddConnection2W` P/Invoke: 最も architectural だが Add-Type C# block の複雑性大、stdin pipe で同等のセキュリティ効果が得られるため不採用
 
-公開 API・CSV スキーマ・ModuleResult 契約・operator 視点の動作フローはいずれも不変。`REQUIRES_KERNEL` 据え置き 2.0.0。
+公開 API・CSV スキーマ・ModuleResult 契約は不変。`REQUIRES_KERNEL` は現状 `3.5.0`（`E:\fabriq\modules\standard\robocopy_config\REQUIRES_KERNEL`）。
 
 ## 入力 (CSV)
 `robocopy_list.csv`
@@ -57,10 +57,12 @@ UNC 認証パスワード（`AuthPass`）を `net use` の **コマンドライ�
 2. 各ジョブのドライラン表示（オプション展開、AuthUser はマスク）
 3. 実行確認（AutoPilot 自動 Y）
 4. ジョブループ:
-   - 4-1. AuthUser/AuthPass 両方ありなら `net use \\Server\Share /user:...` で接続
-   - 4-2. `robocopy Source Destination [FileFilter] /R:3 /W:5 /NP <flags>` 実行（baseline オプション強制付与）
-   - 4-3. ExitCode 評価 (0=変更なし / 1=コピー成功 / 2-3=余剰検出 / 4-7=ミスマッチ Warning / 8+=Error)
-   - 4-4. finally で `net use /delete` 切断
+   - 4-1. `Test-Path Source` で Source 不在なら Fail 計上して次ジョブへ
+   - 4-2. AuthUser/AuthPass 両方ありなら `net use \\Server\Share /user:...` で接続（失敗時は接続済み共有を切断し Fail 計上して継続）
+   - 4-3. `Mirror=1` の場合、破壊的 `/MIR` ガードを **確認ゲート外（無条件）** で実行（後述「破壊的 /MIR ガード」）。Source 列挙は net use の後に行うため認証済み UNC Source も読める
+   - 4-4. `robocopy Source Destination [FileFilter] /R:3 /W:5 /NP <flags>` 実行（baseline オプション強制付与）
+   - 4-5. ExitCode 評価 (0=変更なし / 1=コピー成功 / 2-3=余剰検出 / 4-7=ミスマッチ Warning / 8+=Error)
+   - 4-6. finally で `net use /delete` 切断
 5. 集計して `New-BatchResult` 返却（`-Verified` 未渡し）
 
 ## 注意点・運用メモ
@@ -68,11 +70,21 @@ UNC 認証パスワード（`AuthPass`）を `net use` の **コマンドライ�
 - baseline オプション `/R:3 /W:5 /NP` は CSV から除外不可（ハングアップ防止のセーフガード）
 - v1.0.1 以降、パスワードは `net use` コマンドライン引数として展開されない（stdin pipe 経由）。Win32_Process.CommandLine / Event ID 4688 / Module Logging いずれにも記録されない（PS Transcript には変数参照のまま残る、展開後の値は不記載）
 - Mirror=1 は Source 不在ファイルを Destination から削除するため、誤 Source で意図せぬ削除事故の
-  リスクあり。初回テストは Recursive=1 + SkipOlder=1 を推奨
+  リスクがあるが、現ソースは破壊的 `/MIR` ガードを実装済み（後述）。それでも初回テストは Recursive=1 + SkipOlder=1 を推奨
 - Mirror=1 は厳密な冪等ではない（Source 変化に追従するため）
 - `FileFilter` は Source をディレクトリ指定のままにしてファイル名はこの列で渡す形式
-- net use 失敗時はジョブ Skip して次へ進行（ジョブ間隔離）
+- net use 失敗時は接続済み共有を切断したうえで当該ジョブを Fail 計上して次へ進行（ジョブ間隔離。Skip ではなく Fail 計上）
 - robocopy ExitCode 仕様の Warning レンジ (4-7) は Success 扱い
+
+## 破壊的 /MIR ガード
+`Mirror=1`（`/MIR`）は Destination を Source と一致させるため、Source に無いものを Destination から削除する。
+現ソースはこの破壊性に対し、`robocopy.exe` 起動前（try/finally の外）に 2 段のガードを実装している。
+両ガードとも **確認ゲートの外で無条件に走る** ため、AutoPilot の自動 Y 環境でも有効。Source 列挙は net use の後に行うため認証済み UNC Source も読める。
+
+- (a) 空 Source ガード: `Get-ChildItem -LiteralPath Source -Force | Select-Object -First 1` で Source が空（再作成・誤解決された共有等）かを判定し、空なら `/MIR` を拒否する（Destination 全消去の防止）。拒否時は接続済み共有を切断し当該ジョブを Fail 計上して継続。
+- (b) 保護パスガード（ローカル宛先のみ）: Destination がドライブレター形式（非 UNC）の場合に限り `Test-FabriqProtectedPath -Path Destination`（kernel 関数）を適用し、`.IsSafe -eq $false` なら `/MIR` を拒否する（`C:\Windows` などの保護ルートへの誤ミラー防止）。UNC 宛先はガード (a) で保護され、かつ `Test-FabriqProtectedPath` 自身が UNC 形式を一律ブロックするため、確認ゲート外でドライブレター宛先のみがこのチェックに回る。拒否時は同様に切断のうえ Fail 計上して継続。
+
+なお `Test-FabriqProtectedPath` は削除対象パスの可否判定で、`IsSafe`（削除してはならない場合 `$false`）と `Reason`（ブロック理由文字列）を返す（`E:\fabriq\kernel\common.ps1`）。
 
 ## 検証
 robocopy の ExitCode は「ジョブが成功したか」を返すだけで、実ファイル単位の一致は保証しない。

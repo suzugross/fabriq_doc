@@ -1,8 +1,12 @@
 # profile_delete (Standard)
 
+> **対象**: fabriq / modules（profile_delete）
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION` / commit 0fca159） / モジュール VERSION 1.1.0・REQUIRES_KERNEL 3.5.0（取得元: `E:\fabriq\modules\standard\profile_delete\VERSION` / `REQUIRES_KERNEL`）
+> **ドキュメント更新日**: 2026-06-16
+
 **カテゴリ**: User Management
 **メニュー名**: Delete User Profiles
-**VERSION**: 1.0.0  / **REQUIRES_KERNEL**: 2.0.0
+**VERSION**: 1.1.0  / **REQUIRES_KERNEL**: 3.5.0
 **Post-Apply Verification**: なし（実装推奨メモは Guide にあり、現状未実装）
 **サブスクリプト**: `profile_delete.ps1`（メイン処理 1 本のみ）
 
@@ -22,25 +26,36 @@ WMI レコードが存在しない孤児フォルダや WMI 削除後にフォ�
 
 ## 主要ステップ
 1. 管理者権限チェック（`Test-AdminPrivilege`）
-2. `profile_list.csv` 読み込み（Enabled=1 のみ、UserName 必須）
+2. `profile_list.csv` 読み込み（`Import-ModuleCsv -FilterEnabled`、必須列 `Enabled` / `UserName`）
 3. `%SystemDrive%\Users` 存在確認（D: ドライブインストール等にも追従）
-4. ドライラン: 各エントリの実フォルダ存在を [APPLY] / [SKIP] と表示
-5. 実行確認（AutoPilot は自動 Y）
-6. 削除ループ:
+4. **破壊的パスガード**: 各エントリの `UserName` を `Test-FabriqSafePathComponent` で
+   単一パスコンポーネントとして検証し、`[System.IO.Path]::GetFullPath(Join-Path $usersBase $UserName)`
+   が `$usersBase + '\'` 配下に strict containment されることを確認。違反は
+   `_GuardBlocked` フラグを立てて記録する（確認ゲートより前＝AutoPilot 自動承認下でも有効）。
+5. ドライラン表示: ガード違反は `[BLOCKED]`（Fail 予告）、実フォルダ存在は `[APPLY]`、不在は `[SKIP]`
+6. 実行確認（`Confirm-ModuleExecution`。AutoPilot は自動 Y）
+7. 削除ループ:
+   - `_GuardBlocked` のエントリは `Show-Error` で `[Blocked]` 表示し Fail 計上して continue
    - フォルダ不在は Skip
    - **Stage 1**: `Get-CimInstance Win32_UserProfile | Where { LocalPath -like "*\$userName" }` で
      WMI レコードを取得し `Remove-CimInstance` で正規登録解除
    - **Stage 2**: フォルダがまだ残っていれば `Remove-Item -Path -Recurse -Force` で物理削除
-7. `New-BatchResult` で集計
+8. `New-BatchResult` で集計（`-Success` / `-Skip` / `-Fail`）
 
 ## 注意点・運用メモ
 - 管理者権限必須（`Win32_UserProfile.Remove-CimInstance` 実行）
 - 現在ログオン中のユーザープロファイルは削除不可（OS が拒否、Error 計上）
 - WMI 削除のみではフォルダが残るケースがあり、Stage 2 のフォールバックは必須
 - 削除されたユーザーの SID / プロファイル情報が Windows から登録解除される（レジストリも含む）
-- パス検証（destructive_path_safety）: `Join-Path $usersBase $userName` の結果が
-  `$usersBase` 配下であることを暗黙に前提（CSV の UserName に `..\` 等の
-  path traversal が混入した場合の防御は弱い、運用 CSV のレビュー前提）
+- パス検証（破壊的パスガード, fail-closed）: CSV の `UserName` を
+  `Test-FabriqSafePathComponent`（空/空白・`.`/`..`・区切り文字・ワイルドカード・
+  末尾ドット/スペース等を拒否）で検証し、さらに `GetFullPath` 解決後のパスが
+  `C:\Users\` 配下に strict containment されることを確認する。違反エントリは
+  削除を行わず `[BLOCKED]` 表示のうえ Fail として計上する（fail-closed）。
+  空/空白の `UserName` は `Join-Path` が `C:\Users` 自体へ collapse し、
+  WMI マッチ不成立で Stage 2 が Users ツリー全体を `Remove-Item -Recurse` する
+  リスクがあるため、このガードがそれを遮断する。ガードは確認ゲートより前段に
+  あり、AutoPilot 自動承認下でも有効（運用 CSV レビューに依存しない）。
 
 ## 検証
 Post-Apply Verification は未実装。Guide には実装推奨メモがあり、

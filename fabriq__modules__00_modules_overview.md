@@ -1,8 +1,8 @@
-# モジュール全体図 — 標準 60 / 拡張 16
+# モジュール全体図 — 標準 61 / 拡張 18
 
-> **対象**: fabriq / modules（standard 60 + extended 16 = 76 件）
-> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `fed181a`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象**: fabriq / modules（standard 61 + extended 18 = 79 件）
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging されている。各モジュールは独立 SemVer で配備され、要求カーネル版を `REQUIRES_KERNEL` で宣言する。
 
@@ -14,17 +14,19 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 
 ## モジュール構成の変動（2026-05-08〜05-10、kernel 3.2.5 期）
 
+> 注: 本節は kernel 3.2.5 期（2026-05 時点）の差分記録であり最新ではない。kernel 3.6.0（commit `0fca159`、2026-06-16）時点の実数は標準 61 + 拡張 18 = 79 件。05-10 以降に追加された未掲載分（standard `credential_config` / extended `printer_backup` / extended `userdata_backup`）は下記の各カテゴリ表へ反映済み。
+
 | 区分 | モジュール | 概要 |
 |---|---|---|
 | **新規** | `modules/standard/windows_feature_config` v0.1.0 | Windows Optional Feature の online enable/disable（DISM ラッパ） |
 | **新規** | `modules/extended/server_feature_config` v0.1.0 | Windows Server の役割・機能の online install（ServerManager ラッパ） |
 | **retire** | `modules/standard/bloatware_export` | Module としては撤去。export 機能は `apps/bloatware_exporter` に統合（出力 CSV は `bloatware_remove` のスキーマと整合） |
 
-これで標準 60（うち 1 つ retire / 1 つ新規 → 60 件維持）+ 拡張 16（+1）= **76 件** となった。
+これで標準 60（うち 1 つ retire / 1 つ新規 → 60 件維持）+ 拡張 16（+1）= **76 件** となった（kernel 3.2.5 期の値）。
 
 ---
 
-## Standard（60 件）
+## Standard（61 件）
 
 ### Network
 
@@ -63,6 +65,7 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 | `cert_config` | 証明書ストア配置（`ENC:` パスワード） | あり |
 | `office_license_config` | Office キー install + Activate pair | de-facto（auth が verify） |
 | `windows_license_config` | Windows キー install + Activate pair | 部分（Activate のみ） |
+| `credential_config` | 資格情報マネージャ設定（cmdkey、`Credential Manager Config`、v0.1.0） | 除外（読み返し不可） |
 
 ### User Management
 
@@ -126,7 +129,7 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 | `sysprep_config` | unattend.xml + SetupComplete.cmd 生成 | 除外 |
 | `time_sync_config` | w32tm NTP 設定 + sync source verify | あり（retry 込） |
 | `volume_config` | Core Audio API でマスターボリューム | あり |
-| `windows_feature_config` | Windows Optional Feature の online enable/disable（DISM ラッパ）| あり（State 読み戻し） |
+| `windows_feature_config` | Windows Optional Feature の online enable/disable（DISM ラッパ、v0.1.1）| あり（State 読み戻し） |
 
 ### Registry
 
@@ -163,7 +166,7 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 
 ---
 
-## Extended（16 件）
+## Extended（18 件）
 
 ### Network
 
@@ -185,6 +188,12 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 |---|---|---|
 | `desktop_icon_config` | Desktop アイコン .reg backup + restore pair（HKCU↔HKU\<SID> 正規化）| なし |
 
+### Printer
+
+| モジュール | 主な役割 | Verification |
+|---|---|---|
+| `printer_backup` | プリンタ環境（プリンタ / ポート / ドライバ / 印刷設定）の backup + restore pair（manifest.json 中心、`printer_backup_config.csv` 駆動、v0.5.0）| なし |
+
 ### User Management
 
 | モジュール | 主な役割 | Verification |
@@ -198,6 +207,7 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 |---|---|---|
 | `directory_cleaner` | ディレクトリクリーンアップ（hardcoded forbidden-path whitelist 3 重 guard）| なし |
 | `history_destroyer` | 13 カテゴリ履歴削除（Edge / Chrome / Search / Wi-Fi / 7 special handlers）| なし |
+| `userdata_backup` | 任意ファイル / ディレクトリの portable backup + restore pair（manifest.json 中心、robocopy、`userdata_backup_list.csv` 駆動、v0.1.1）| なし |
 
 ### System
 
@@ -257,12 +267,12 @@ fabriq の機能はすべて `modules/{standard,extended}/<name>/` に packaging
 | Network | 5 | 2 |
 | Display | 3 | 2 |
 | Desktop | 3 | 1 |
-| Security | 7 | 0 |
+| Security | 8 | 0 |
 | User Management | 2 | 2 |
-| Printer | 2 | 0 |
+| Printer | 2 | 1 |
 | Applications | 7 | 0 |
 | Power | 1 | 0 |
-| Maintenance | 7 | 2 |
+| Maintenance | 7 | 3 |
 | System | 15 | 3 |
 | Registry | 2 | 0 |
 | Scripts | 2 | 1 |
@@ -277,7 +287,7 @@ Special（カテゴリ統計外）: `pianist`（extended）
 
 ## Verification 実装率
 
-- **実装済み**: 27 / 76 ≈ 36%（kernel 3.2.5 期に新規 windows_feature_config / server_feature_config を追加して +2）
+- **実装済み**: 27 / 79 ≈ 34%（kernel 3.2.5 期に新規 windows_feature_config / server_feature_config を追加して +2。05-10 以降に追加された credential_config / printer_backup / userdata_backup はいずれも Verification なし）
 - **意図的除外**（誤 PASS リスク or 検証不可能）: 約 15 件
 - **未実装（推奨）**: 残り
 
@@ -285,4 +295,5 @@ Special（カテゴリ統計外）: `pianist`（extended）
 - `acl_config`: ACL ツリー完全読み返しは膨大、サブセット検証で false PASS の risk
 - `spi_config`: Default Profile への hive load 経由でログイン後にしか反映されない
 - `copyfile_config`: ファイル存在 != 内容正しい、ハッシュ検証は重い
+- `credential_config`: cmdkey は保存済みパスワードを読み返せず、`cmdkey /list` も内容を返さない（exit 0 で false PASS）。実装では `-Verified = $null`（`credential_config.ps1` のヘッダコメント / Step 5.5 参照）
 - `sysprep_config` / `restart_config` / `signout_config` / `domain_join`: 再起動後 / OS 再起動後 / 別ユーザログオン後にしか確認できない（技術的不可）

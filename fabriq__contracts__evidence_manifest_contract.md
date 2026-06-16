@@ -1,12 +1,12 @@
 # Evidence Manifest 契約（External Evidence Consumer ↔ fabriq）
 
 > **対象**: fabriq / kernel + evidence_config の外部公開契約
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ evidence_config 1.6.0（取得元: `E:\fabriq\modules\standard\evidence_config\VERSION`）+ commit `e513cf1`
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ evidence_config 1.8.1（取得元: `E:\fabriq\modules\standard\evidence_config\VERSION`）+ commit `0fca159`
+> **ドキュメント更新日**: 2026-06-16
 
 `KERNEL_API.md §10` および `kernel/EVIDENCE_MANIFEST.md` で公式宣言された、**外部 evidence consumer ツール**（代表: `fabriq_evidence_manager`、別プロジェクト C#/WPF/.NET8）が前方互換に消費するための公開契約。
 
-`evidence_config` モジュール v1.3.0+ が `pc_information/<dir>/manifest.json` を出力（現行は v1.6.0）。kernel 2.2.2 で contract 公開化。
+`evidence_config` モジュール v1.3.0+ が `pc_information/<dir>/manifest.json` を出力（現行は v1.8.1）。kernel 2.2.2 で contract 公開化。
 
 ---
 
@@ -30,8 +30,8 @@
 {
   "schemaVersion": 1,
   "manifestType": "fabriq-evidence-manifest",
-  "evidenceConfigVersion": "1.6.0",
-  "fabriqKernelVersion": "3.2.2",
+  "evidenceConfigVersion": "1.8.1",
+  "fabriqKernelVersion": "3.6.0",
   "collectedAt": "2026-04-25T13:28:39+09:00",
   "computerName": "NEW-PC-01",
   "hardwareUniqueId": "T2NXCV06Y22208C",
@@ -64,14 +64,16 @@
     }
   ],
   "summary": {
-    "sectionCount": 32,
-    "successCount": 28,
+    "sectionCount": 34,
+    "successCount": 30,
     "skippedCount": 4,
     "failedCount": 0,
     "partialCount": 0
   }
 }
 ```
+
+> 上記の値は例示（kernel 3.6.0 / evidence_config 1.8.1 時点のサンプル）。実際の値は実行環境の各バージョンが入る。`evidence_list.csv` は計 34 セクション（§01〜§33 + §8b）を定義する（`E:\fabriq\modules\standard\evidence_config\evidence_list.csv`、Guide.txt §冒頭）。
 
 ### トップレベルフィールド
 
@@ -93,7 +95,7 @@
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `id` | string | yes | セクション ID。現行 v1.6.0 では `"01"`〜`"31"` を採番、`"8b"` のような副 ID も許容（schemaVersion=1 内での新 section 追加は後方互換） |
+| `id` | string | yes | セクション ID。現行 v1.8.1 では `"01"`〜`"33"`（+ 副 ID `"8b"`）を採番。`"8b"` のような副 ID も許容。新 section 追加は schemaVersion=1 内で後方互換（v1.8.0 で §32 / §33 を追加） |
 | `title` | string | yes | セクション名（例: `"System Basic Info"`） |
 | `files` | string[] | yes | manifest 親ディレクトリからの相対パス配列。`/` で終わる文字列はディレクトリを意味する。書き込みファイルが無ければ空配列 |
 | `status` | enum | yes | `"Success"` / `"Skipped"` / `"Failed"` / `"Partial"` のいずれか |
@@ -169,20 +171,24 @@ manifest.json 不在の旧形式 evidence（kernel 2.2.1 以前 / evidence_confi
 
 ## 監査ギャップとの関連
 
-evidence_config の inventory 拡張は段階的に進んでおり、**v1.6.0 時点で §23〜§31 を実装済み**：
+evidence_config の inventory 拡張は段階的に進んでおり、**v1.8.1 時点で §23〜§33 を実装済み**：
 
 | セクション | 内容 |
 |---|---|
 | §23 | Security Baseline |
-| §24 | Group Policy Summary（gpresult 相当） |
+| §24 | Group Policy Report（gpresult 相当） |
 | §25 | Certificates（証明書一覧） |
 | §26 | Battery Report |
-| §27 | Environment Variables（2026-04-30 追加） |
-| §28 | Startup Items（同上） |
-| §29 | Memory Slots（同上） |
-| §30 | PnP Devices（同上） |
-| §31 | Hardware Identifiers（同上） |
+| §27 | Environment Variables |
+| §28 | Startup Items |
+| §29 | Memory Slots |
+| §30 | PnP Devices |
+| §31 | Hardware Identifiers |
+| §32 | Credential Manager（v1.8.0 追加。`32_Credentials.csv`。Win32 `CredEnumerateW` で実行ユーザーの資格情報をメタデータのみ列挙、パスワード本体 `CredentialBlob` は読取・記録ともに行わない） |
+| §33 | Outlook Mail Accounts（v1.8.0 追加。`33_OutlookAccounts.csv` + `33_OutlookDataFiles.csv`。`Office\{16.0,15.0}\Outlook\Profiles` レジストリをメタデータのみ走査、Outlook COM 不使用） |
 
-残る官公庁向け監査の audit gap candidates: **TPM / SecureBoot / secedit / NTP / AccessControl** など（project memory `project_evidence_audit_gaps` 参照）。これらの追加は schemaVersion=1 内で OK（後方互換 section 追加）。manifest 契約は将来 audit gap を埋める追加に耐えられる設計になっている。
+また §05（Domain / Azure AD Status）は User Profiles 出力（`05_UserProfiles.csv`）を含むよう拡張済み。
+
+これらの新 section 追加（§32 / §33）はいずれも schemaVersion=1 内の後方互換追加であり、manifest スキーマ自体（`schemaVersion=1`、トップレベル / Section / Summary 構造、status 4 値）は不変。既存 manager は未知 ID を raw 表示するため破壊的 drift は無い。残る官公庁向け監査の audit gap candidates: **TPM / SecureBoot / secedit / NTP / AccessControl** など（project memory `project_evidence_audit_gaps` 参照）。これらの追加も schemaVersion=1 内で OK（後方互換 section 追加）。manifest 契約は将来 audit gap を埋める追加に耐えられる設計になっている。
 
 evidence_manager 側の対応では、§21（License）/§22（Office License）の重要 section 表示が manifest schema 経由で必須化されることで、過去の "files only" 表示モードでの section 取りこぼしを防ぐ（project memory `project_evidence_manifest_gap` 参照）。

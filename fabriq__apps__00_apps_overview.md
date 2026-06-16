@@ -1,5 +1,9 @@
 # fabriq apps カタログ
 
+> **対象**: fabriq / apps
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`） / commit 0fca159（取得元: `git -C E:\fabriq rev-parse --short HEAD`）
+> **ドキュメント更新日**: 2026-06-16
+
 `e:/fabriq/apps/` 配下には、fabriq カーネルおよびモジュール群とは独立した GUI サブプロジェクト群が並んでいます。これらは「補助具 (auxiliary tools)」であり、いずれも単体の `.ps1` をエントリポイントとして起動できる自己完結型の WinForms アプリです。
 
 apps の特徴:
@@ -14,7 +18,7 @@ apps の特徴:
 
 ## fabriq_operator
 
-`apps/fabriq_operator/` — **fabriq 全体のメインダッシュボード**。`fabriq_operator.ps1` 自身は薄いブートストラップで、`lib/` 以下に分割された 6 ファイルを dot-source する構成 (theme / session_form / apps_dialog / quickactions_dialog / dashboard_form / flex_dashboard)。`kernel/main.ps1` がこのファイルを読み込んだ瞬間に WinForms アセンブリが投入され、`Show-SessionSetupForm` および `Show-OperatorDashboard` が公開される。fabriq の操作員がキッティング作業中にもっとも多く触るアプリで、Profile 実行 (Linear / Flex)、モジュール単発実行、Quick Actions、CSV Editor / Windows Update / Refabriq などの dispatch をすべて担う。詳細は `01_fabriq_operator_dashboard.md` を参照。
+`apps/fabriq_operator/` — **fabriq 全体のメインダッシュボード**。`fabriq_operator.ps1` 自身は薄いブートストラップで、`lib/` 以下に分割された 8 ファイルを dot-source する構成 (theme / session_form / apps_dialog / quickactions_dialog / dashboard_form / flex_dashboard / log_viewer / execution_toolbar)。`log_viewer.ps1` は FlexProfile の各行に追加された [Log] ボタンから呼ばれるテレメトリログビューワ (`Get-ModuleTelemetryLog` / `Show-ModuleLogViewer`)、`execution_toolbar.ps1` は 3.4.0 で退役した `kernel/ps1/status_monitor.ps1` の in-process 後継 (`Show-ExecutionToolbar`)。`kernel/main.ps1` がこのファイルを読み込んだ瞬間に WinForms アセンブリが投入され、`Show-SessionSetupForm` および `Show-OperatorDashboard` が公開される。fabriq の操作員がキッティング作業中にもっとも多く触るアプリで、Profile 実行 (Linear / Flex)、モジュール単発実行、Quick Actions、CSV Editor / Windows Update / Refabriq などの dispatch をすべて担う。詳細は `01_fabriq_operator_dashboard.md` を参照。
 
 ## fabriq_ios
 

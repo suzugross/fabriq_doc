@@ -1,8 +1,8 @@
 # セッション開始フォームの操作
 
 > **対象**: fabriq / usage
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 `Fabriq.exe` 起動 → resume 検出を抜けた fresh start で表示される **`Show-SessionSetupForm`**（`apps/fabriq_operator/lib/session_form.ps1`）の操作手順。Worker / Target Host / Master Passphrase の 3 入力を 1 ダイアログで取り、起動の前提条件である環境変数群を確定させる。
 
@@ -232,8 +232,11 @@ else
 6. Load-Profiles
    ─ profiles/*.csv 一覧化（無ければ Basic Setup / Full Setup を生成）
 
-7. Start-StatusMonitor
-   ─ 別プロセスで status_monitor.ps1 を起動（PID 記録）
+7. Show-ExecutionToolbar
+   ─ kernel の powershell.exe 内の専用 STA Runspace で in-process Execution Toolbar を表示
+   ─ 旧 out-of-process Status Monitor（status_monitor.ps1 / Start-StatusMonitor）は
+     3.4.0 で非推奨化・3.5.0 で削除済み。別プロセスを spawn しないため Defender/ASR の
+     子プロセス制限を受けない
 
 8. Show-OperatorDashboard
    ─ メインダッシュボード表示（無限ループ）
@@ -297,7 +300,7 @@ function Resolve-HostValue {
 | ボタン | 実装 | 性質 |
 |---|---|---|
 | `[New Session]` | `Reset-FabriqState` を同 process で呼ぶ → session form 再表示 | 中強度（PID 維持、state を明示クリア） |
-| `[Refabriq]` | `Stop-StatusMonitor` + `Stop-Transcript` + `Start-Process Fabriq.exe` + `exit 0` | 高強度（PID 入れ替え、cold boot 相当） |
+| `[Refabriq]` | `Hide-ExecutionToolbar` + `Remove-StatusFile` + `Start-Process Fabriq.exe` + `Stop-Transcript` + `exit 0` | 高強度（PID 入れ替え、cold boot 相当） |
 
 `[Refabriq]` は state ファイル（`session.json` / `execution_history.csv` / `resume_state.json`）を **明示削除しない**。新 process が起動時の Resume Detection や `Initialize-Session` の優先順位に従ってそれらを再利用する可能性がある。`[New Session]` の方が **意図的に履歴を白紙にする** 用途に合致する。詳細は [fabriq__usage__05_evidence_and_quick_actions.md](fabriq__usage__05_evidence_and_quick_actions.md) §「Refabriq」。
 

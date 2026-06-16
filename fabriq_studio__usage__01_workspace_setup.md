@@ -71,9 +71,10 @@ dotnet publish FabriqStudio/FabriqStudio.csproj `
 ├── profiles/
 ├── commands/
 ├── evidence/
-├── Fabriq.bat
-└── Deploy.bat
+└── Fabriq.bat
 ```
+
+> **注**: 旧テンプレートには `Deploy.bat`（USB→対象 PC デプロイツール）が含まれていたが、fabriq 本体側で **kernel 3.6.0（TM t-0042）にて廃止・削除済み**（取得元: `E:\fabriq\CHANGELOG.md` `## [3.6.0]` の `### Removed`）。現行の fabriq 本体テンプレートに `Deploy.bat` は存在しないため、コピー対象に含めない。
 
 このディレクトリは `.gitignore` 対象のため Git から除外されている。fabriq 本体リポジトリ（`E:\fabriq`）から手動でコピーするか、CI/CD で配布パッケージ化する際に同梱する。
 

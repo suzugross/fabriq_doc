@@ -1,14 +1,14 @@
 # 特殊マーカー（Special Markers）契約
 
 > **対象**: fabriq / 契約（特殊マーカー）
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 profile CSV の `ScriptPath` 列に書ける特殊識別子。`Resolve-ProfileModules` がこれらを解釈してプロファイル全体の挙動を制御する。
 
 ---
 
-## 現行マーカー（5 種、kernel 3.3.x）
+## 現行マーカー（6 種、kernel 3.6.x）
 
 ### 1. `__AUTOPILOT__`（kernel 2.0.0〜）
 
@@ -113,6 +113,45 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 **用途**:
 - 同じプロファイル内で複数の AutoLogon 切替が必要なシナリオ（admin で WU → user で BitLocker など）
 - profile に `autologon_config` を直書きすると user 引数が固定されるが、`__AUTO_to_<User>__` で動的選択可能
+
+### 6. `__GATE__`（kernel 3.6.0〜）— 前進バリア（forward barrier）
+
+```csv
+30,__GATE__,1,検証ゲート,,,
+```
+
+**動作（マーカー登録）**:
+- `Resolve-ProfileModules` の `specialMarkers` に `'__GATE__' = @{ MenuName = "[GATE]"; Flag = "_IsGate" }` で登録（`E:\fabriq\kernel\common.ps1` L3678）
+- `__GATE__` 行は `_IsGate=$true` の checkpoint として ValidModules に入るが、**何も実行しない**。`Invoke-BatchExecution` の loop が `_IsGate` を検出すると `[GATE] checkpoint at Order N` を表示して `continue`（`E:\fabriq\kernel\main.ps1` L458-462）
+
+**前進バリアの意味（admission control）**:
+- 各 `__GATE__` は「**直前のゲート（または profile 開始）〜自身**」の窓を守る。窓内のモジュールに **Status=Error / Partial**、または **Post-Apply Verification 失敗**（`VerifiedMap[Order] -eq $false`）が1つでもあれば、その gate は **unsatisfied**
+- `Get-FabriqGateBarrier`（純関数・内部ヘルパ、`E:\fabriq\kernel\common.ps1` L3747-3811）が Rows を Order 昇順に走査し、**最初の unsatisfied gate の Order** を barrier として返す（無ければ `$null`）
+- `Invoke-BatchExecution` が各モジュール実行直前に `Get-FabriqGateBarrier` を評価し、`barrier != $null` かつ `module.Order >= barrier` なら `[GATE] Blocked: Order N (name) is beyond the unsatisfied gate at Order M. Resolve the failure(s) above and re-run.` を表示し、当該モジュールは **Pending 据え置き**（新ステータス記録なし）で `continue`（`E:\fabriq\kernel\main.ps1` L464-476）
+- 完走時、ブロックがあれば `[GATE] N module(s) blocked by an unsatisfied gate (Orders: ...)` をサマリ表示（`E:\fabriq\kernel\main.ps1` L709）
+
+**ブロックする / しない条件**:
+- **ブロックする**: Status=`Error` / `Partial`（`common.ps1` L3802）、または Verified=`$false`（L3807）
+- **ブロックしない**: `Success` / `Skipped` / `Cancelled` / `Pending`（未実行・StatusMap に不在）。Verified が `$null`（未検証モジュール）/ `$true` も非ブロック（L3766-3768, L3804-3807）。ゲートは「失敗」を守るものであり「未実行（省略）」は守らない
+
+**動的評価**:
+- 判定に渡す StatusMap は **判定時点の状態**（当該 run の蓄積 + session history）。`__RESTART__` 跨ぎも history 経由で保持されるため、フォワード実行中に発生した失敗もゲートで止まる（`E:\fabriq\kernel\main.ps1` L464-470 のコメント、L3758-3762）
+
+**決定的ソート**:
+- Order 昇順、Order 同値では **非ゲート(0) → ゲート(1)** の二次キーを使い、同 Order のモジュールはそのゲートの窓の**内側**に数える（保守的。PS 5.1 の `Sort-Object` は非安定のため明示二次キー / `common.ps1` L3778-3785）
+
+**FlexProfile グレーアウト（UI 反映）**:
+- `flex_dashboard.ps1` が同じ `Get-FabriqGateBarrier` で barrier を計算（`E:\fabriq\apps\fabriq_operator\lib\flex_dashboard.ps1` L148）
+- gate 行: 青タイント `ARGB(214,224,240)` + `Checked` セル ReadOnly + tooltip（L453-456）
+- barrier 以降の blocked 行: `Checked=false` + ReadOnly、MenuName / Order を灰色 `ARGB(150,150,150)`（L463-468）、`[Select All]` からも除外（`row.Tag.IsGate` / `row.Tag.Blocked` を bulk-select から外す / L704-708）
+- ただし **Status / Verified バッジ色と `[Log]` ボタンは有効のまま**（失敗を可視化し続ける / L460-462）。enforcement の権威は kernel 側にあり、UI は反映のみ（L140-141）
+
+**後方互換**:
+- `ModuleResult` 契約は不変。`__GATE__` を含まない既存 profile は **挙動完全不変**。`KERNEL_API.md` §4.2 マーカ表に since 3.6.0 で記載済み
+
+**用途**:
+- 検証ステージの区切りに置き、上流のいずれかが Error/Partial または Post-Apply Verification 失敗のまま下流（Order >= gate）を走らせないための前進バリア
+- 例: ネットワーク系を窓に括って `__GATE__` を置き、ドメイン参加の前提が満たされない限り後続を Pending 留めにする
 
 ---
 

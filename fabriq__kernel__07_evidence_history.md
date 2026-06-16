@@ -1,8 +1,8 @@
 # エビデンス・実行履歴・HTML チェックリスト
 
 > **対象**: fabriq / kernel + evidence_config モジュール
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ evidence_config 1.6.0（取得元: `E:\fabriq\modules\standard\evidence_config\VERSION`）+ commit `e513cf1`
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ evidence_config 1.8.1（取得元: `E:\fabriq\modules\standard\evidence_config\VERSION`）+ commit `0fca159`
+> **ドキュメント更新日**: 2026-06-16
 
 fabriq は「**やった証拠を残す**」ことを業務契約として担保する。すべてのモジュール実行はスクリーンショット PNG + 実行履歴 CSV 行 + HTML チェックリストへ反映される。
 
@@ -29,11 +29,11 @@ fabriq は「**やった証拠を残す**」ことを業務契約として担保
 ├── gyotaku/              ── Save-Screenshot の手動 PNG（Status Monitor のボタン経由）
 ├── checklist/            ── Export-HtmlChecklist の HTML レポート
 ├── export_history/       ── Export-ExecutionHistory のフルダンプ CSV
-└── pc_information/       ── evidence_config モジュールの収集結果（22 セクション）
+└── pc_information/       ── evidence_config モジュールの収集結果（34 セクション）
     └── {date}_{uid}_{pc}/
         ├── 01_SystemInfo.txt
         ├── ...
-        ├── 22_OfficeLicense.txt
+        ├── 33_OutlookAccounts.csv
         └── manifest.json    ── EVIDENCE_MANIFEST.md 公開契約に基づく
 ```
 
@@ -188,14 +188,16 @@ profile CSV の `DefinedModules` 全件 vs `ExecutionResults` を Order でク�
 
 ## evidence_config モジュール（pc_information 収集）
 
-`modules/standard/evidence_config/` は fabriq 同梱の最大規模モジュール（**v1.6.0**）。**31 主セクション + サブセクション 1（id "8b"）= 計 32 件** のシステム情報を `pc_information/{date}_{uid}_{pc}/` 配下に出力し、最後に `manifest.json` を `EVIDENCE_MANIFEST.md` 契約に従って書く（2026-04-30 の inventory 拡張で §27〜§31 を追加）。
+`modules/standard/evidence_config/` は fabriq 同梱の最大規模モジュール（**v1.8.1**）。**全 34 セクション（§01〜§33 + §8b）** のシステム情報を `pc_information/{date}_{uid}_{pc}/` 配下に出力し、最後に `manifest.json` を `EVIDENCE_MANIFEST.md` 契約に従って書く（2026-04-30 の inventory 拡張で §27〜§31 を追加、v1.8.0 で §32 Credential Manager / §33 Outlook Mail Accounts を追加）。
+
+各セクションの収集可否は `evidence_list.csv`（Id / Title / Enabled）で個別に切り替えられる。CSV 不在・該当 Id 行欠落・Enabled 空/不正値はすべて「有効」として扱う default-on policy のため、CSV を編集せずに使う限り従来通り全 34 セクションが収集される（無効化したセクションは manifest 上 `status="Skipped"` / `reason="Disabled by configuration (evidence_list.csv)"` で記録される）。
 
 ### 出力例（抜粋）
 
 ```
 01_SystemInfo.txt              ── ComputerInfo, OSVersion, BIOS
 02 ../*.csv                    ── Local Users / Local Groups / Group Members
-05_DomainStatus.txt            ── Domain / Azure AD Status
+05_DomainStatus.txt + 05_UserProfiles.csv  ── Domain / Azure AD Status + User Profiles
 06_*, 07_*.csv                 ── Network Settings / Printers
 08_BitLocker.txt + 8b_*.csv    ── BitLocker + Disk & Partition Info
 10_SerialNumber.txt
@@ -213,10 +215,14 @@ profile CSV の `DefinedModules` 全件 vs `ExecutionResults` を Order でク�
 25_*.csv .. 26_BatteryReport   ── Certificates / Battery Report
 27_*.csv .. 30_*.csv           ── Environment Vars / Startup / Memory Slots / PnP（2026-04-30 追加）
 31_HardwareIdentifiers.txt     ── （2026-04-30 追加）
+32_Credentials.csv             ── Credential Manager（メタデータのみ、v1.8.0 追加）
+33_OutlookAccounts.csv + 33_OutlookDataFiles.csv  ── Outlook Mail Accounts（メタデータのみ、v1.8.0 追加）
 manifest.json                  ── 全セクションの schemaVersion=1 manifest
 ```
 
-セクション 14（Server Roles）は Server OS のみ（Client は Skipped）、§22（OfficeLicense）も Office 不在時は Skipped で扱われる。詳細は [fabriq__contracts__evidence_manifest_contract.md](fabriq__contracts__evidence_manifest_contract.md)。
+セクション 14（Server Roles）は Server OS のみ（Client は Skipped）、§22（OfficeLicense）も Office 不在時は Skipped で扱われる。§32（Credential Manager）は `CredEnumerateW` でメタデータのみ列挙し、`CredentialBlob`（パスワード本体）は読み取らない。§33（Outlook Mail Accounts）は `Office {16.0,15.0}\Outlook\Profiles` レジストリをメタデータのみ走査（COM 不使用）し、Password 系レジストリ値は存在確認すら行わない。詳細は [fabriq__contracts__evidence_manifest_contract.md](fabriq__contracts__evidence_manifest_contract.md)。
+
+manifest スキーマ自体（`schemaVersion=1`、status 4 値）は §32/§33 追加でも不変で、新 section ID の追加は schemaVersion=1 内の後方互換追加として扱われる。
 
 ---
 

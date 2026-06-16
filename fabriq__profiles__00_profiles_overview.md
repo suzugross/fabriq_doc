@@ -1,8 +1,8 @@
 # profiles カタログ
 
 > **対象**: fabriq / profiles
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 `e:/fabriq/profiles/` には fabriq の Profile (= モジュール実行手順書 CSV) のサンプル / テンプレートが収められています。実運用では各 Profile は **現場固有の編集物**であり、`framework_overlay_rules.json` により `profiles/` ツリー全体が overlay 時に **保持対象 (preserved)** に指定されています。つまりここに置かれているファイルは「あくまで出発点」で、実際のキッティング案件では現場で書き換えられて使われます。
 
@@ -15,6 +15,7 @@ Profile CSV の **必須列は `Order,ScriptPath,Enabled` の 3 列**（`KERNEL_
 - `__RESTART__` — 再起動を挿入。fabriq は再起動後 RunOnce で resume する
 - `__AUTOPILOT__` — AutoPilot モード ON、`Description` に `WaitSec=N` を書くと wait 秒数指定可
 - `__ASYNC__` — このマーカー以降のモジュールを非同期 (Runspace) 実行に切替。**kernel 3.3.0 以降**は shipped default `DefaultAsync=true` のため全モジュールが既定で async、本マーカーは idempotent ON-only no-op（後方互換）。詳細は [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md) / [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md)
+- `__GATE__` — **前進バリア (forward barrier)**（**kernel 3.6.0 以降**）。それ自体は実行されない checkpoint（`_IsGate=true`、`MenuName=[GATE]`）。「直前のゲート（または Profile 開始）〜この行」の窓内に `Status=Error/Partial` または Post-Apply Verification 失敗のモジュールが 1 つでもあると、その `__GATE__` 以降の Order のモジュールは実行を拒否され `Pending` 据え置きになる（admission control）。判定は実行時点の StatusMap（当該 run + session history、`__RESTART__` 跨ぎも含む）に対し動的に行われ、フォワード実行中の失敗でも止まる。`Success/Skipped/Cancelled/Pending` および Verified が `$null/$true` の行はブロック要因にならない。Linear ダッシュボードと FlexProfile の双方が同一の `Get-FabriqGateBarrier` で barrier を算出し、Flex では barrier 以降の行が灰色でグレーアウト + Select All 除外される（enforcement の権威は kernel、UI は反映のみ）。`__GATE__` を含まない既存 Profile の挙動は完全不変。詳細は [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md)
 
 ## 同梱されている Profile
 

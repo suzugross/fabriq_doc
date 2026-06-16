@@ -1,8 +1,8 @@
 # ディレクトリ構成全体図
 
 > **対象**: fabriq / kernel + リポジトリ全体構造
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 fabriq リポジトリのファイルツリーを上から眺めた全体像。配備時の意味づけ・更新オーバーレイの境界・ランタイム生成物の配置を網羅する。
 
@@ -14,7 +14,7 @@ fabriq リポジトリのファイルツリーを上から眺めた全体像。�
 fabriq/
 ├── Fabriq.exe                    ── C# エントリ（UAC 自動昇格 → main.ps1 起動）
 ├── Fabriq_IOS.exe                ── fabriq_ios サブプロジェクト用ランチャ（独立 SemVer）
-├── Deploy.bat                    ── USB → 対象 PC へのデプロイヘルパ
+│                                  （Deploy.bat は kernel 3.6.0 / TM t-0042 で廃止・削除済み）
 ├── README.md                     ── L1 に "# Fabriq verX.Y" の版表記
 ├── CHANGELOG.md                  ── Keep a Changelog 1.1.0 形式（[Unreleased] + リリース版）
 ├── CLAUDE.md                     ── Claude 開発時の絶対遵守ルール（テンプレ厳守、命名、SemVer）
@@ -260,7 +260,7 @@ logs/ も overlay 除外。
 
 | 区分 | 含まれるか |
 |---|---|
-| **Framework**（kernel bundle で overlay 対象） | `kernel/` (csv/json/txt の site-specific は除く), `apps/`, `commands/`, `dev/`, `Fabriq.exe`, `Deploy.bat`, README, CHANGELOG, CLAUDE.md, LICENSE |
+| **Framework**（kernel bundle で overlay 対象） | `kernel/` (csv/json/txt の site-specific は除く), `apps/`, `commands/`, `dev/`, `Fabriq.exe`, README, CHANGELOG, CLAUDE.md, LICENSE（`Deploy.bat` は kernel 3.6.0 で削除済みだが、`dev/framework_overlay_rules.json` の kernel bundle `includePaths` には未整理の entry として残存） |
 | **Module Bundle**（per-module overlay） | `modules/{std,ext}/<name>/` (module.csv + preset.csv + scripts + Guide.txt + VERSION + REQUIRES_KERNEL のみ、`_list.csv` 等は除く) |
 | **Site-Specific**（絶対保護） | `profiles/` 全体, `kernel/csv/{hostlist,workers,log_destinations}.csv`, `kernel/txt/passphrase_verify.txt`, `modules/*/_list.csv`, `silence.flag` |
 | **Runtime**（除外） | `kernel/json/*`, `evidence/`, `logs/`, `.git/`, `.claude/` |

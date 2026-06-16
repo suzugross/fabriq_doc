@@ -1,13 +1,13 @@
 # office_license_config (Standard)
 
 > **対象**: fabriq / modules/standard/office_license_config
-> **対象バージョン**: モジュール 1.0.1 / kernel 3.2.5（取得元: `E:\fabriq\modules\standard\office_license_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `fed181a`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象バージョン**: モジュール 1.1.0 / kernel 3.6.0（取得元: `E:\fabriq\modules\standard\office_license_config\VERSION` / `E:\fabriq\kernel\KERNEL_VERSION`、commit `0fca159`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 **カテゴリ**: Security
 **メニュー名**: Install Office Product Key / Activate Office License
-**VERSION**: 1.0.1  / **REQUIRES_KERNEL**: 2.0.0
-**Post-Apply Verification**: install=なし／auth=スクリプト内で `/dstatus` 再解析（事実上の検証、`-Verified` は未渡し）
+**VERSION**: 1.1.0  / **REQUIRES_KERNEL**: 2.0.0
+**Post-Apply Verification**: install=`/dstatus` 読み返し（`Get-InstalledPartialKeys`、投入キー末尾5桁の存在を成功条件）で検証し `New-BatchResult -Verified` を渡す／auth=スクリプト内で `/dstatus` 再解析（事実上の検証、`-Verified` は未渡し）
 **サブスクリプト**: `office_license_install.ps1`（プロダクトキー登録）, `office_license_auth.ps1`（ライセンス認証）
 
 ## 目的
@@ -76,8 +76,9 @@ Project）を 1 度の認証で一括処理します。
 3. OSPP.vbs 自動検出。失敗時に CSV の OsppPath が皆無なら Error 終了
 4. ドライラン表示（[APPLY] / [INVALID KEY] / [ENC ERROR] / [OSPP NOT FOUND] でマーキング）
 5. 実行確認（AutoPilot は自動 Y）
-6. 各キーごとに ENC 残存ガード → 形式バリデーション → `cscript //Nologo OSPP.vbs /inpkey:<KEY>` 実行
-7. `New-BatchResult` で集計
+6. 各キーごとに ENC 残存ガード → 形式バリデーション → OSPP.vbs 存在チェック → `cscript //Nologo OSPP.vbs /inpkey:<KEY>` 実行
+7. ExitCode 0 でも登録確定とはみなさず、`/dstatus` を読み返して投入キー末尾5桁の存在を確認（不在なら 2 秒待機後 1 回リトライ）。存在で成功 + Verified 通過、不在で失敗 + Verified 不通過に計上
+8. `New-BatchResult -Verified <bool/null>` で集計（適用キー全件確認で `$true`、1 件でも不在で `$false`、読み返しに到達したキーが皆無なら `$null`）
 
 ## 主要ステップ（auth）
 1. 管理者権限チェック
@@ -100,7 +101,13 @@ Project）を 1 度の認証で一括処理します。
   （`_office_common.ps1` に切り出す案は guide にコメントあるが現状未統合）
 
 ## 検証
-- install: 検証は実装せず、cscript の ExitCode のみで判定。`-Verified` は未渡し
+- install: `/inpkey:` の ExitCode 0 だけでは登録確定とみなさない（OSPP.vbs は
+  `0xC004F050` 等の `/inpkey` エラーをテキスト出力しつつ ExitCode 0 で終了し得るため）。
+  `Get-InstalledPartialKeys` で `/dstatus` を読み返し、投入キー末尾5桁が
+  「Last 5 characters of installed product key:」行に現れることを成功条件とする
+  （不在時は 2 秒待機して 1 回リトライ）。集計は `New-BatchResult -Verified` を渡し、
+  適用キー全件が確認できれば `$true`、1 件でも不在なら `$false`、読み返しに到達した
+  キーが皆無（全件 skip/fail）なら `$null`。
 - auth: スクリプト内で `/dstatus` を再実行し全製品の LICENSE STATUS を再解析、
   Status / Message で結果を表現するが `New-ModuleResult -Verified` は未使用。
   事実上の検証はスクリプト内で完結しており、

@@ -1,35 +1,73 @@
-# ステータスモニタ + 演出 (ART pulse / silence / manifesto)
+# Execution Toolbar（旧 Status Monitor の後継）+ 演出 (ART pulse / silence / manifesto)
 
-> **対象**: fabriq / kernel + status_monitor
-> **対象バージョン**: kernel 3.2.5（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `fed181a`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-10）
-> **ドキュメント更新日**: 2026-05-10
+> **対象**: fabriq / kernel + apps/fabriq_operator（Execution Toolbar）
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
-fabriq の二画面構成の左右の片方。メインダッシュボードとは独立した別プロセスで動き、`status.json` ファイルを polling する設計。これにより重い WinForms 処理がメイン実行をブロックしない。
+fabriq の実行中ステータス表示は、kernel 3.4.0 で **別プロセス型 Status Monitor から in-process な Execution Toolbar へ全面移行**した。本ドキュメントは現行の Execution Toolbar を中心に記述する。
 
 ---
 
-## アーキテクチャ概観
+## 位置づけと履歴（重要）
+
+- 旧 **Status Monitor**（`kernel/ps1/status_monitor.ps1` を `-WindowStyle Hidden` の別 PowerShell プロセスで起動し `status.json` を polling する方式）と、そのタイピング演出 `kernel/ps1/art_display.ps1` は kernel **3.4.0 で非推奨化・3.5.0 で物理削除**された。関連関数 `Start-StatusMonitor` / `Stop-StatusMonitor` / `Show-MonitorFailureDialog` も 3.5.0 で削除済み（取得元: `kernel/KERNEL_API.md` §8 [3.4.0]/[3.5.0]。両 `.ps1` はソースに存在しない）。
+- 後継は **Execution Toolbar**（実装: `apps/fabriq_operator/lib/execution_toolbar.ps1`）。kernel の `powershell.exe` 内の **専用 STA Runspace** で動く in-process フローティングツールバー。別プロセスを spawn しないため、Defender / ASR の子プロセス制限（旧方式で hidden 子プロセスがブロックされ「モニタが出ない」障害になっていた問題）を受けない（取得元: `execution_toolbar.ps1` 冒頭コメント L1-25）。
+
+旧 Status Monitor を直接呼んでいた手順・関数参照（`Start-StatusMonitor` / `Stop-StatusMonitor` / `Show-MonitorFailureDialog`、`-WindowStyle Hidden` 子プロセス起動、起動診断ログ `-DiagLogPath`、Exit codes 11-14、ウィンドウ存在ポーリングによる成否判定）は **すべて無効**。in-process Runspace では「子プロセス起動失敗」という失敗モード自体が存在しないため、それらの診断機構も廃止された。
+
+---
+
+## 公開/内部 API（since 3.4.0）
+
+`kernel/KERNEL_API.md` では §6（内部実装）に分類される。**モジュールが依存してよい公開 API ではない**（取得元: `kernel/KERNEL_API.md` §6 / §8 [3.4.0]）。
+
+- `Show-ExecutionToolbar` — 起動時にツールバーを開く（STA Runspace を生成）。
+- `Hide-ExecutionToolbar` — 終了 / `__RESTART__` / 中断時にツールバーを閉じる。
+- `Update-ExecutionToolbar [-ExecutionState 'Idle'|'Running'] [-ModuleName <s>] [-TargetHostInfo <hashtable>]` — 状態を共有 synchronized ハッシュテーブルへ push する。直接 UI を触らず、ツールバー Runspace 側の 1 秒 Timer が次 tick で反映する（`execution_toolbar.ps1` の `Update-ExecutionToolbar` L1269-1309）。
+- `Save-Screenshot -BaseDir <string>`（since 3.4.0、公開化なし）— 任意タイミングで PNG を保存。`[Gyotaq]` ボタンが呼ぶ（`common.ps1` の `Save-Screenshot` L4787）。
+
+---
+
+## ライフサイクル（kernel/main.ps1 が駆動）
 
 ```
-[ Main Process: Fabriq.exe → main.ps1 ]
-   ├── Show-* / Add-ExecutionResult が呼ばれる度に
-   │   Write-StatusFile -Phase "executing"  ── status.json を atomic 書き込み
-   │   Write-ArtPulse                          ── art_pulse.txt のカウンタを +1
-   ↓ ファイルベース IPC ↓
-[ Monitor Process: kernel/ps1/status_monitor.ps1（別 PowerShell プロセス）]
-   ├── status.json を 500ms 間隔で polling
-   ├── 変更検出時に WinForms TextBox / Label / Grid を更新
-   └── 演出:
-       ├── art_pulse.txt の数字が増えたら「鼓動」アニメ
-       ├── art_sentences.txt から 1 行をランダム表示
-       └── silence.flag が存在すれば演出を完全停止
+fabriq 起動
+   ↓
+Show-ExecutionToolbar                                         (main.ps1 L1702)  ── STA Runspace でツールバー生成
+   ↓
+ホスト選択時
+   Update-ExecutionToolbar -TargetHostInfo (Get-FabriqHostInfoFromEnv)   (main.ps1 L203-204)
+   ↓
+各モジュール実行直前
+   Update-ExecutionToolbar -ExecutionState 'Running' -ModuleName <名>     (main.ps1 L364, L583)
+   ↓
+モジュール間 / バッチ完了
+   Update-ExecutionToolbar -ExecutionState 'Idle'                        (main.ps1 L766)
+   ↓
+Exit-Fabriq / __RESTART__ / 中断
+   Hide-ExecutionToolbar                          (main.ps1 L530 / L1006 / L1268 / L2190 / L2202)
 ```
+
+`Exit-Fabriq`（`common.ps1` L4323）は `Remove-StatusFile` → `Hide-ExecutionToolbar` の順でクリーンアップする（ソースコメントに「formerly Stop-StatusMonitor's job; the out-of-process Status Monitor was removed in 3.5.0」と明記）。
+
+---
+
+## ツールバーの構成要素
+
+- **PC Info ペイン** — 期待値（hostlist 由来の `SELECTED_*`）と現在値を縦並びで照合表示する。
+  - 期待値: `Update-ExecutionToolbar -TargetHostInfo` で push される `Get-FabriqHostInfoFromEnv` の戻り（Hostname / KanriNo / Pin / Eth{IP,Subnet,Gateway} / Wifi{IP,Subnet,Gateway} / DNS / Printers）。
+  - 現在値: `Get-NetIPAddress` / `Get-Printer` 等の live OS クエリ。
+  - **旧来の `status.json` の `PCInfo` / `CurrentPCInfo` ブロックには依存しない**（`execution_toolbar.ps1` 冒頭 L11-14、`Get-FabriqHostInfoFromEnv` L36-78）。
+- **`[Skip]` ボタン** — async モジュールの強制中断要求。`Get-FabriqAsyncConfig` の `SkipFlagPath`（既定 `.\kernel\json\skip_request.flag`、`common.ps1` L1604）に「`requested at <ts>`」を書き込む。`Invoke-SafeCommandAsync` の polling loop がこのフラグを検出して Runspace を停止する。**`__ASYNC__` マーカ以降のモジュールにのみ有効**（ボタン ToolTip / `execution_toolbar.ps1` L1042-1066）。詳細は [fabriq__kernel__08_async_execution.md](fabriq__kernel__08_async_execution.md)。
+- **`[Gyotaq]` ボタン** — 旧「Manual Screenshot」の後継。フォームを 300ms 退避 → `Save-Screenshot -BaseDir <EvidenceBasePath>\gyotaku`（`EvidenceBasePath` 未設定時は `<fabriqRoot>\evidence\gyotaku`）→ フォーム復帰（`execution_toolbar.ps1` L1068-1112）。
+- **ART 演出パネル** — Surkitinisme 演出（後述）。`kernel/json/art_pulse.txt` / `kernel/txt/art_sentences.txt` / `kernel/txt/silence.flag` / `kernel/json/status.json` をディスクから直接読む（`execution_toolbar.ps1` L123-128, L745-776）。
+- **ボタン活性制御** — `[Skip]` / `[Gyotaq]` は `ExecutionState='Running'` のときのみ活性化、`Idle` で無効化される（`execution_toolbar.ps1` L1160-1161、`Update-ExecutionToolbar` の `.PARAMETER ExecutionState` L1279-1280）。
 
 ---
 
 ## status.json スキーマ
 
-`Write-StatusFile -Phase <idle|executing|complete>` が atomic write する：
+`Write-StatusFile -Phase <idle|executing|complete>`（`common.ps1` L4219）が atomic write する。スキーマ自体は移行前後で不変（書き手は引き続き kernel。変わったのは読み手が「別プロセス monitor」から「in-process toolbar」になった点）：
 
 ```json
 {
@@ -51,10 +89,8 @@ fabriq の二画面構成の左右の片方。メインダッシュボードと�
     ]
   },
   "CurrentPCInfo": {
-    /* Get-CurrentPCInfo の結果 — 実 OS から取った現在値（照合用） */
     "ComputerName": "NEW-PC-01",
     "EthernetIP": "192.168.1.100",
-    /* ... */
     "Printers": [{ "Name": "Office", "Port": "192.168.1.50" }]
   },
   "Execution": {
@@ -74,8 +110,7 @@ fabriq の二画面構成の左右の片方。メインダッシュボードと�
         "Timestamp": "2026-05-06 10:30:55",
         "IsRestored": false,
         "Verified": true
-      },
-      /* ... */
+      }
     ]
   }
 }
@@ -89,160 +124,49 @@ $statusData | ConvertTo-Json -Depth 5 | Out-File -FilePath $tempPath -Encoding U
 Move-Item -Path $tempPath -Destination $script:StatusFilePath -Force
 ```
 
-書き込み中の半端な JSON を monitor が読んで crash しないよう、tmp ファイルへ書いてから rename。失敗時は直接書きへフォールバック（best-effort で例外は飲む）。
+書き込み中の半端な JSON を読み手が読んで crash しないよう、tmp ファイルへ書いてから rename。`Move-Item` 失敗時は直接書きへフォールバック（best-effort で例外は飲む。`common.ps1` L4287-4301）。
 
-### PCInfo vs CurrentPCInfo
+### status.json の現在の役割
 
-- `PCInfo`: hostlist.csv 起源の **期待値**（SELECTED_* env vars）
-- `CurrentPCInfo`: `Get-CurrentPCInfo` が `Get-NetAdapter` / `Get-Printer` で取った **現在値**
-
-monitor 画面の左右に並べて差分ハイライト。HTML チェックリストでも同じ照合を行う。
-
----
-
-## status_monitor.ps1 の構造
-
-別プロセスで起動される独立 WinForms アプリ。
-
-### 起動コマンド
-
-```powershell
-$argList = @(
-    "-NoProfile", "-ExecutionPolicy", "Unrestricted",
-    "-File", ".\kernel\ps1\status_monitor.ps1",
-    "-StatusFilePath", $statusFileFullPath,
-    "-PulseFilePath",  $pulseFileFullPath,
-    "-SilenceFlagPath", $silenceFlagFullPath,
-    "-DiagLogPath", $diagLogPath        # kernel 3.2.3 で追加
-)
-# -SentenceFilePath は art_sentences.txt が存在する場合のみ後追い追加
-if (-not [string]::IsNullOrWhiteSpace($sentenceFileFullPath)) {
-    $argList += @("-SentenceFilePath", $sentenceFileFullPath)
-}
-Start-Process powershell.exe -ArgumentList $argList -WindowStyle Hidden -PassThru
-```
-
-PID は `$global:FabriqStatusMonitorProcess` に格納し、`Stop-StatusMonitor` で `CloseMainWindow` → 2 秒待ち → 強制 Kill。
-
-### 起動診断ログ（kernel 3.2.3 で追加）
-
-`-WindowStyle Hidden` で起動した子プロセスは **uncaught exception を全部飲み込む**ため、子が即死／hung した場合の症状は「タスクバーに何も出ない、モニタウィンドウが現れない」だけになる。kernel 3.2.3 でこの diagnostic blackout を解消するための診断ログ機構を追加した。
-
-**ファイル配置**: `Start-StatusMonitor`（`common.ps1` L4475〜）が 1 セッション 1 ファイルを生成し、子に `-DiagLogPath` 引数で渡す。
-
-```
-logs/status_monitor_<yyyyMMdd_HHmmss>.log
-```
-
-**子側のログ機構**: `status_monitor.ps1` L24〜L31 の `Write-DiagLog` ヘルパが `Add-Content -ErrorAction SilentlyContinue` で best-effort 追記（ロガー自身が落ちないよう全例外を握り潰す設計）。起動チェーンの主要点に `[init]` / `[asm]` / `[dpi]` / `[forms]` / `[console]` / `[paths]` / `[common]` / `[form]` / `[run]` タグでログ行を残す。
-
-**Exit codes**:
-
-| Exit code | 失敗箇所 |
-|---|---|
-| 11 | `System.Drawing` ロード失敗 |
-| 12 | `System.Windows.Forms` ロード失敗 |
-| 13 | `kernel/common.ps1` の dot-source 失敗 |
-| 14 | `Application.Run` 中の uncaught exception（ScriptStackTrace を診断ログに残す）|
-
-**ウィンドウ存在ポーリングによる成否判定**（同 L4537〜L4555）:
-
-`HasExited` の即死チェックだけでは不十分なケース（App Control 配備済端末で子が後段で死亡 / hung するパターン）が 2026-05-09 に判明したため、判定の主シグナルを **「Fabriq タイトルのメインウィンドウが `$monitorProcess.MainWindowTitle` に現れたか」** に変更。最大 4 秒、200ms 間隔でポーリング。3 つの終了条件:
-
-1. `MainWindowTitle` が `"Fabriq"` を含む → 成功（process を return）
-2. `HasExited` 検出 → 失敗（早期死亡）
-3. timeout、生存中、ウィンドウ未出現 → 失敗（起動中 hung）
-
-**失敗時の operator 通知**（L4557〜以降）:
-
-- ExitCode と診断ログパスを Show-Warning で surface
-- 早期死亡 + 診断ログサイズ 0 → host security policy（WDAC / AppLocker / Defender ASR / 同等）の疑いとして operator に明示
-- 早期死亡 + 診断ログあり → `Get-Content -Tail 1` で最終行を抜粋表示
-- 生存中 hung → kill して orphan 防止 + 「ホストセキュリティ調査中の可能性」を表示
-
-### 子側 defensive fallback（kernel 3.2.3 で追加）
-
-`status_monitor.ps1` の起動チェーンには以下の局所的 fallback が組み込まれている。
-
-**DpiX ゼロ／負値ガード**（L70〜L86）: `Graphics.FromHwnd([IntPtr]::Zero).DpiX` が病的に 0 / 負を返す環境で Form Size が `(0, 0)` になり「実行しているのに不可視」となる経路を遮断。`$rawDpi -le 0` で 96 fallback、`dpiScale<=0` を 1.0 にクランプ。
-
-**`NoActivateForm` Add-Type 失敗時の fallback**（L118〜L159）: 動的 C# コンパイルが AMSI / `csc.exe` パス問題 / `%TEMP%` 書込権限欠如等で失敗した場合、通常の `System.Windows.Forms.Form` および `System.Windows.Forms.StatusStrip` で代用。`WS_EX_NOACTIVATE` のフォーカスを奪わない挙動は失うが、**ウィンドウが画面に出ること** を優先。`$script:useFallbackForm` フラグで分岐。
-
-**`Application.Run` を try/catch でラップ**（L1348〜L1355）: 例外時は `ScriptStackTrace` を診断ログに残して exit 14。
-
-### 表示要素（概念）
-
-- **PC Info ペイン**: PCInfo（期待値）と CurrentPCInfo（実際値）を縦並び
-- **Execution Summary**: TotalCount / Success / Error / Skipped / Partial の数字
-- **Execution Details Grid**: Operation, Status（色付）, Verified バッジ, Timestamp
-- **Skip ボタン**: async モジュール強制中断（`skip_request.flag` を生成）
-- **Manual Screenshot ボタン**: `Save-Screenshot` を呼んで `evidence/{base}/gyotaku/` に PNG 保存
-- **ART Pulse 鼓動**: `art_pulse.txt` の数字が増えるたびにアニメ
-- **ART 言葉**: `art_sentences.txt` から 1 行をランダム表示
-
-### Skip ボタンの実装
-
-monitor が `skip_request.flag` を作成 → `Invoke-SafeCommandAsync` の polling loop が検出 → Runspace を `ps.Stop()` で強制終了 → Skip 結果として記録。詳細は §08_async_execution.md。
+- **書き手**: `Write-StatusFile`（`common.ps1` L4219）。`Show-*` / `Add-ExecutionResult` 等が実行のたびに呼ぶ。
+- **読み手**: Execution Toolbar の ART/ステータス同期。`execution_toolbar.ps1` L745-776 が `Execution.Phase` と最新 `Execution.Details` を読み取る。
+- **PC Info 照合**は `status.json` ではなく `TargetHostInfo`（`SELECTED_*`）+ live クエリへ移行済み（上記「PC Info ペイン」参照）。
+- **後始末**: `Remove-StatusFile`（`common.ps1` L4304）が `status.json` + `.tmp` + `art_pulse.txt` を削除。`Exit-Fabriq` 経由で実行される。
 
 ---
 
 ## ART Pulse / Sentences / silence.flag（演出機能）
 
-fabriq には「**Manifeste du Surkitinisme**」という演出文化がある（README L1）。Status Monitor がこの演出を担う。
+fabriq には「**Manifeste du Surkitinisme**」という演出文化がある。旧方式では Status Monitor / `art_display.ps1` がこの演出を担っていたが、`art_display.ps1` 削除後はタイピング描画も含め **Execution Toolbar の ART パネルに移植**されている。
 
 ### art_pulse.txt
 
+- 配置: `kernel/json/art_pulse.txt`（`$global:ArtPulseFilePath` = `.\kernel\json\art_pulse.txt`、`common.ps1` L30）
 - 中身: 整数 1 行（カウンタ）
 - 書き手: `Write-ArtPulse`（`Show-Info` / `Show-Success` / `Show-Warning` / `Show-Error` / `Show-Skip` のすべてが内部で呼ぶ）
-- 読み手: `status_monitor.ps1` が polling し、増加分を「鼓動」アニメに変換
-- 用途: モジュール実行が「生きている」ことを視覚化（プロセスがハングしてないか operator が一目で判断できる）
+- 読み手: Execution Toolbar の ART パネルが polling し、増加分を「鼓動」アニメに変換
+- 用途: モジュール実行が「生きている」ことを視覚化（プロセスがハングしていないか operator が一目で判断できる）
 
 ### art_sentences.txt
 
-- 中身: アンドレ・ブルトン『シュルレアリスム宣言』をキッティング文脈にパロディ翻案した日本語の散文 150 行（1 行 = 1 段落、各段落が長文）。fabriq の演出哲学キーワード「**シュルキティニスム / Surkitinisme（超展開主義）**」がこの中で定義される
-- 描画担当: `kernel/ps1/art_display.ps1`（status_monitor から `-SentenceFilePath` 引数で渡されつつ、別プロセスとして並走するタイピング演出ウィンドウ）。`Select-NextSentence` でランダム選択 → `ART_BURST_SPEED` (8ms/char) または `ART_IDLE_SPEED` (35ms/char) で 1 文字ずつタイピング描画。**大文字化はしない**（原文の日本語をそのまま表示）
-- pulse counter（`art_pulse.txt`）の増分でタイピング速度がバースト切替する仕組み。モジュール実行が活発なとき高速、idle 時は低速
+- 配置: `kernel/txt/art_sentences.txt`
+- 中身: キッティング文脈の演出散文 150 行（1 行 = 1 段落）。fabriq の演出哲学キーワード「**シュルキティニスム / Surkitinisme（超展開主義）**」がこの中で語られる
+- 描画担当: Execution Toolbar の ART パネル（旧 `kernel/ps1/art_display.ps1` は削除済み。タイピング演出は `execution_toolbar.ps1` に移植）。`art_pulse.txt` の増分でタイピング速度がバースト切替する
 
 ### silence.flag
 
-- 存在するだけで monitor が ART 演出を完全停止
-- 業務環境で演出が邪魔な場合の opt-out 機構
-- ファイル中身は問わない（存在チェックのみ）
+- 配置: `kernel/txt/silence.flag`
+- 存在するだけで ART 演出を完全停止
+- 業務環境で演出が邪魔な場合の opt-out 機構（ファイル中身は問わない。存在チェックのみ）
 
 ---
 
 ## manifesto.ps1（マニフェスト表示 GUI）
 
-`kernel/ps1/manifesto.ps1` に WinForms 関数 `Show-Manifesto` を定義。`kernel/csv/manifesto.csv`（章ごとの本文）を読み、ダッシュボードの `[Manifeste du Surkitinisme]` ボタンから呼ばれる。
-
-純粋に演出機能であり、運用上の意味は無い（fabriq の哲学を作業者に表示する）。
+`kernel/ps1/manifesto.ps1` に WinForms 関数 `Show-Manifesto` を定義（現存）。`kernel/csv/manifesto.csv`（章ごとの本文）を読み、ダッシュボードの `[Manifeste du Surkitinisme]` ボタンから呼ばれる。純粋に演出機能であり運用上の意味は無い。
 
 ---
 
 ## view_report.ps1（HTML チェックリストビューア）
 
-`kernel/ps1/view_report.ps1` は単体起動可能な HTML ビューアスクリプト。プロファイル完了時に `Complete-ProfileExecution` から自動起動され、最新の `evidence/{base}/checklist/checklist_*.html` を既定ブラウザで開く。
-
----
-
-## Status Monitor のライフサイクル
-
-```
-fabriq 起動
-   ↓
-Initialize-Session 後
-   ↓
-Start-StatusMonitor
-   ├── Write-StatusFile -Phase "idle" でスケルトン生成
-   ├── Start-Process powershell.exe ... -WindowStyle Hidden -PassThru
-   ├── PID を $global:FabriqStatusMonitorProcess に保存
-   └── 1.2 秒待ってから Set-ConsoleForeground（メインコンソールを前面に戻す）
-   ↓
-... モジュール実行中、Add-ExecutionResult 等のたびに Write-StatusFile が更新 ...
-   ↓
-Exit-Fabriq（ユーザーが終了）
-   ↓
-Stop-StatusMonitor
-   ├── CloseMainWindow → 2 秒で Wait→ 強制 Kill
-   └── Remove-StatusFile（status.json + tmp + art_pulse.txt 削除）
-```
+`kernel/ps1/view_report.ps1` は単体起動可能な HTML ビューアスクリプト（現存）。プロファイル完了時に `Complete-ProfileExecution` から自動起動され、最新の `evidence/{base}/checklist/checklist_*.html` を既定ブラウザで開く。

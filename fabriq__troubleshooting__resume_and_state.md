@@ -1,8 +1,8 @@
 # 状態ファイルとレジューム異常のトラブルシューティング
 
 > **対象**: fabriq / kernel + windows_update + extended/pianist
-> **対象バージョン**: 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`、commit `5525728`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`、commit `0fca159`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 fabriq は **複数の状態ファイル**で実行コンテキストを跨いだ継続性を担保している。これらのファイルが想定外の状態（残存・破損・古いバージョン）になったとき、何が観測され、どう正規化するかをまとめた運用ガイド。
 
@@ -18,11 +18,11 @@ fabriq は **複数の状態ファイル**で実行コンテキストを跨い�
 |---|---|---|---|
 | `resume_state.json` | profile 実行中断状態（v1=Linear / v2=Flex 兼用） | 数分〜数時間 | profile 完走時 / `Remove-ResumeState` 明示 |
 | `session.json` | 作業者・媒体・ホスト情報のセッション固有メタ | セッション期間 | `Reset-FabriqState`（NewSession 時） |
-| `status.json` | StatusMonitor が表示する現在 phase | 常時更新 | `Write-StatusFile -Phase "idle"` で待機状態に |
+| `status.json` | Execution Toolbar の ART/ステータス同期が読む現在 phase（書き手は引き続き kernel の `Write-StatusFile`） | 常時更新 | `Write-StatusFile -Phase "idle"` で待機状態に |
 | `wu_state.json` | Windows Update reboot loop の往復状態 | WU loop 中のみ | WU 完了で削除 |
 | `wu_completed.json` | WU loop 終了サマリ。次回起動時 main.ps1 が消費 | 1 サイクル | main.ps1 import 後に消費削除 |
-| `art_pulse.txt` | StatusMonitor 用の一時 metric（CPU/メモリ表示） | 数秒 | StatusMonitor 終了で残存することあり |
-| `skip_request.flag` | StatusMonitor → kernel への中断要求 | 検知されるまで | kernel が読んだ瞬間に削除 |
+| `art_pulse.txt` | Execution Toolbar の ART パネルが読む鼓動カウンタ（`Write-ArtPulse` が増分） | 数秒 | `Remove-StatusFile` が `status.json` と併せて削除 |
+| `skip_request.flag` | Execution Toolbar の `[Skip]` ボタン → kernel への async 中断要求 | 検知されるまで | `Invoke-SafeCommandAsync` の polling が読んだ瞬間に削除 |
 | `silence.flag` | サウンド抑制フラグ | 設定中のみ | 手動 |
 | `async_config.json` | async 経路の設定（`Enabled` kill switch / `DefaultAsync` 既定 ON 化 / `DefaultTimeoutSec` / `PollIntervalMs` / `SkipFlagPath`）。git tracked、shipped default は `Enabled=true` + `DefaultAsync=true` | 永続（git tracked） | 通常は触らない。緊急時に `Enabled=false` で全モジュール同期実行に降格 |
 
@@ -42,19 +42,29 @@ fabriq は **複数の状態ファイル**で実行コンテキストを跨い�
 
 ### Refabriq（プロセス再起動）
 
-[main.ps1:1881-1895](file:///E:/fabriq/kernel/main.ps1):
+[main.ps1:2200-2215](file:///E:/fabriq/kernel/main.ps1):
 
 ```powershell
 "Refabriq" {
-    Stop-StatusMonitor -MonitorProcess $global:FabriqStatusMonitorProcess
-    Start-Process $fabriqExe -WorkingDirectory $fabriqRoot
+    Show-Info "Restarting Fabriq..."
+    try { Hide-ExecutionToolbar } catch { }
+    Remove-StatusFile
+    $fabriqRoot = (Resolve-Path ".").Path
+    $fabriqExe = Join-Path $fabriqRoot "Fabriq.exe"
+    if (Test-Path $fabriqExe) {
+        Start-Process $fabriqExe -WorkingDirectory $fabriqRoot
+    } else {
+        Show-Error "Fabriq.exe not found: $fabriqExe"
+        Wait-KeyPress
+        continue
+    }
     try { Stop-Transcript | Out-Null } catch { }
     exit 0
 }
 ```
 
 - **fabriq プロセス自体を再起動**。
-- StatusMonitor を一旦停止 → `Fabriq.exe` を新プロセスで起動 → 自プロセスは `exit 0`。
+- Execution Toolbar を `Hide-ExecutionToolbar` で閉じ → `Remove-StatusFile` で `status.json` / `art_pulse.txt` を後始末 → `Fabriq.exe` を新プロセスで起動 → 自プロセスは `exit 0`。
 - **状態ファイルは削除しない**: `resume_state.json` / `session.json` / `wu_state.json` などは **そのまま残る**。
 - **用途**: PowerShell 環境がおかしくなった、変数が汚染された、特定の関数を再ロードしたい、コマンド履歴を切りたい等。
 - **注意**: 「まっさら」にはならない。レジューム状態が残っていれば、再起動後の fabriq は **そこから再開**する。
@@ -100,7 +110,7 @@ NewSession 後は **作業者選択ダイアログから再スタート**する�
 | Host 環境変数 | 残る | 解除 |
 | AutoPilot フラグ | 残る | false に戻る |
 | Master passphrase | 失われる（プロセス再起動） | 失われる（NewSession 内で削除はしないが UI が再入力を要求） |
-| StatusMonitor | 一旦停止して再起動 | そのまま（idle に戻すだけ） |
+| Execution Toolbar | `Hide-ExecutionToolbar` で閉じてプロセス再起動時に再生成 | そのまま（idle に戻すだけ） |
 | 用途 | PS 環境のリフレッシュ | 別端末を新規キッティング開始する |
 
 > **典型的な誤運用**: 「リセットしたつもりが Refabriq だった」→ 前 PC の `resume_state.json` から再開してしまい、**現在の PC に異なる Profile を適用しようとする**事故。NewSession を選ぶこと。
@@ -277,16 +287,18 @@ hostlist.csv / module CSV にある `ENC:<Base64>` プレフィクスのセル�
 
 ---
 
-## status.json / StatusMonitor の異常
+## status.json / Execution Toolbar の異常
 
-### StatusMonitor が表示されない
+> kernel 3.4.0 で別プロセス型 Status Monitor は in-process な **Execution Toolbar** に置き換わり、`status_monitor.ps1` / `art_display.ps1` および `Start-StatusMonitor` / `Stop-StatusMonitor` / `Show-MonitorFailureDialog` は 3.5.0 で物理削除された（取得元: `E:\fabriq\kernel\KERNEL_API.md` §8 [3.5.0]）。Execution Toolbar は kernel の `powershell.exe` 内の専用 STA Runspace で動くため、旧方式で「Defender / ASR が hidden 子プロセスをブロックしてモニタが出ない」という障害モードは存在しない。詳細は [fabriq__kernel__06_status_monitor.md](fabriq__kernel__06_status_monitor.md)。
+
+### Execution Toolbar が表示されない / ART パネルが動かない
 
 `art_pulse.txt` が更新されていない / `status.json` が壊れている。
 
 **復旧**:
 
-1. `Stop-StatusMonitor`（直接呼べないので Refabriq）
-2. 起動時に StatusMonitor が再生成される
+1. Refabriq でプロセスを再起動する（`Hide-ExecutionToolbar` → `Remove-StatusFile` → 新プロセス起動）。
+2. 起動時に `Show-ExecutionToolbar`（[main.ps1:1702](file:///E:/fabriq/kernel/main.ps1)）が STA Runspace ごとツールバーを再生成する。
 
 ### `status.json` の Phase が「実行中」のまま固まる
 
@@ -346,9 +358,9 @@ Remove-Item .\kernel\txt\silence.flag        -Force -ErrorAction SilentlyContinu
 │   ┌─ kernel/json/ ──────────────────────────────────┐ │
 │   │ resume_state.json   ◀── profile 中断中のみ      │ │
 │   │ session.json        ◀── NewSession で再生成     │ │
-│   │ status.json         ◀── StatusMonitor が常時更新│ │
+│   │ status.json         ◀── kernel が常時更新       │ │
 │   │ wu_state.json       ◀── WU loop 中のみ          │ │
-│   │ skip_request.flag   ◀── StatusMonitor → kernel  │ │
+│   │ skip_request.flag   ◀── Toolbar[Skip] → kernel  │ │
 │   │ art_pulse.txt       ◀── 一時 metric             │ │
 │   └─────────────────────────────────────────────────┘ │
 │                                                       │
@@ -376,3 +388,4 @@ Remove-Item .\kernel\txt\silence.flag        -Force -ErrorAction SilentlyContinu
 ## 変更履歴
 
 - 2026-05-07 初版作成（kernel 3.2.2 commit `e513cf1`、Refabriq vs NewSession の 10 カテゴリ比較・resume_state.json v1/v2 異常・wu_state ライフサイクル・ENC: 暗号化復旧・最終クリーンアップ手順を網羅）
+- 2026-06-16 kernel 3.6.0 commit `0fca159` へ同期。旧 Status Monitor 記述を Execution Toolbar へ是正（状態ファイル表の status.json / art_pulse.txt / skip_request.flag、Refabriq コードブロックの `Stop-StatusMonitor` 引用、比較表、状態関係図、専用節「status.json / Execution Toolbar の異常」）。`status_monitor.ps1` / `art_display.ps1` / `Start-StatusMonitor` / `Stop-StatusMonitor` / `Show-MonitorFailureDialog` の参照を除去

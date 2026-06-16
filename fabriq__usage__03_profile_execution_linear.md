@@ -1,8 +1,8 @@
 # Profile Linear 実行と個別モジュール実行
 
 > **対象**: fabriq / usage
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 ダッシュボード `Profiles` タブの **`[Execute Profile]`（Linear）** と `Modules` タブの **`[Execute]`（個別実行）** の使い分けと動作詳細。state-aware 部分実行は別 doc（[fabriq__usage__04_flexprofile_dashboard.md](fabriq__usage__04_flexprofile_dashboard.md)）。
 
@@ -182,7 +182,7 @@ ExecutionMode='Linear' の場合は `FinalizeOnComplete=true` で完了 = 即 fi
 
 ## 3. 特殊マーカーの operator 視点動作
 
-profile CSV の `ScriptPath` 列に書く 5 種のマーカー。詳細仕様は [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md)、ここでは「使うとどう見えるか」に絞る。
+profile CSV の `ScriptPath` 列に書く 6 種のマーカー（`__AUTOPILOT__` / `__RESTART__` / `__ASYNC__` / `__REEXPLORER__` / `__GATE__` / `__AUTO_to_<User>__`）。詳細仕様は [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md)、ここでは「使うとどう見えるか」に絞る。
 
 ### `__AUTOPILOT__`
 
@@ -269,6 +269,36 @@ DarkCyan 色のメッセージ。Status Monitor 別ウィンドウで `[Skip]` �
 **作用**: Explorer プロセスを `Stop-Process -Name explorer -Force` で殺し、復帰を最大 15 秒待つ（Windows が自動再起動してくれる）。15 秒で復帰しなければ `Start-Process explorer.exe` で強制起動。
 
 **operator が見る変化**: 一瞬タスクバーが消えて再描画される。レジストリ変更の即時反映（壁紙 / アイコン配置 / 等）に使う。
+
+### `__GATE__`（前進バリア、kernel 3.6.0 以降）
+
+```csv
+50,__GATE__,1,IP まで通ったか確認,,,
+```
+
+**作用**: 該当行は **実行されない checkpoint**（`_IsGate=true` の擬似モジュール。`common.ps1` L3678 で specialMarkers に登録、MenuName `[GATE]`）。代わりに前進バリアとして機能する。「直前のゲート（または profile 開始）〜自身」の窓に **Error / Partial のモジュール、または Post-Apply Verification 失敗（Verified=False）のモジュール** が 1 つでも残っている間、その `__GATE__` 以降の Order を **すべてブロック（Pending 据え置き）** する。窓が全て通っていれば素通りする。判定は純関数ヘルパ `Get-FabriqGateBarrier`（`common.ps1` L3747-3811）が担い、最初に満たされていないゲートの Order を barrier として返す。Success / Skipped / Cancelled / 未実行（Pending）はブロックせず、Verified=$null（未検証）/ $true もブロックしない（**Error/Partial と Verified=False のみ** が窓を汚す）。
+
+**operator が見る変化（Linear でも同じ）**:
+
+- ゲート行に到達すると実行はされず `[GATE] checkpoint at Order N` が出る（`main.ps1` L458-462: `_IsGate` を検知して `Show-Info` 後 `continue`）。
+- 上流の窓が汚れている状態でゲート以降の Order を実行しようとすると、各モジュールの直前で admission control（`main.ps1` L464-476）が発火し、黄色で
+  ```
+  [GATE] Blocked: Order 60 (winget install) is beyond the unsatisfied gate at Order 50. Resolve the failure(s) above and re-run.
+  ```
+  と表示。当該モジュールは **新ステータスを記録せず Pending のまま** 据え置かれ、`continue` で次へ進む（=ブロックされた行も同様に弾かれる）。
+- 完走時、ブロックが 1 件以上あれば末尾に
+  ```
+  [GATE] 2 module(s) blocked by an unsatisfied gate (Orders: 60, 70). Resolve the upstream failure(s) and re-run.
+  ```
+  のサマリが出る（`main.ps1` L709）。これで「全部流したつもりが途中のゲートで止まった」ことが操作員に伝わる。
+
+**ポイント**:
+
+- **動的評価**: barrier は実行直前の状態（当該 run で蓄積した結果 + session history。`__RESTART__` 跨ぎでも history 経由で保持される）で毎回計算される。フォワード実行の途中で起きた失敗でも、次の Order を評価する時点でゲートに引っかかって止まる。「最初に流したときは通ったが今回は前段が落ちた」も即座に反映される。
+- **復旧運用**: 上流の Error/Partial を解消（該当モジュールを個別 / 部分実行で成功させる、または Verified=False を解消）してから再実行すると、窓が綺麗になりゲートが開く。ゲート行そのものに対する特別な操作は不要。
+- **既存 profile は不変**: `__GATE__` を 1 つも含まない profile の挙動は完全に同じ。ModuleResult 契約も不変。
+
+FlexProfile（部分実行）ダッシュボードでは同じ `Get-FabriqGateBarrier` を使って barrier を計算（`flex_dashboard.ps1` L148）。ゲート行は青タイント（ARGB 214,224,240）+ Checked が ReadOnly + tooltip 付き（L453-456）。barrier 以降の blocked 行は Checked=false + ReadOnly、MenuName / Order を灰色（ARGB 150,150,150）に落とし、`[Select All]` の一括選択からも除外される（L463-468, L704-708）。ただし Status / Verified バッジ色と `[Log]` ボタンは有効のままで、ブロックの原因となった失敗とそのログは確認できる（L460-468）。enforcement の権威は kernel 側にあり、UI はそれを反映するだけ（L139-141）。詳細は [fabriq__usage__04_flexprofile_dashboard.md](fabriq__usage__04_flexprofile_dashboard.md)。
 
 ### `__AUTO_to_<User>__`
 

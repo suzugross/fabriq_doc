@@ -1,8 +1,8 @@
 # Telemetry レイヤ（AI 開発コーパス）
 
 > **対象**: fabriq / kernel telemetry layer
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`、commit `5525728`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`、commit `0fca159`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 kernel 3.2.3 で追加された **AI 開発コーパス用** の構造化ロギング層。fabriq の運転中の挙動（モジュール envelope / Show-* / 例外 / CSV 構造メタ / セッションライフサイクル / cmdlet verbose 出力）を JSONL に蓄積し、後で AI が事後分析できるようにする。**運用上のオブザーバビリティ機能ではなく、エビデンス・監査チャネルでもない**（それらは引き続き `evidence/checklist*.html` と `manifest.json` が担う）。
 
@@ -231,8 +231,45 @@ main.ps1 L1461 の `$null = Enable-FabriqVerboseCapture` が flag 存在チェ�
 
 ---
 
+## 最初の read-only 消費者（FlexProfile per-row [Log] ビューワ、kernel 3.6.0 / t-0074）
+
+これまで telemetry は **書き手しか居ない**チャネルだった（writer が JSONL を append するのみ）。kernel 3.6.0（t-0074）で **fabriq 本体に内在する最初の読み手**が追加された。`apps/fabriq_operator/lib/log_viewer.ps1` の **FlexProfile per-row [Log] ボタン**用ログビューワがそれである。
+
+このビューワは **presentation-only**。既存のエントリ別テレメトリ JSONL（`logs/telemetry/<SessionID>/modules/<seq>_<name>.jsonl`）を **read-only で読むだけ**で、別ログ stream を一切作らない。`Show-*` が記録済みの `type=show.<level>` / `tag` / `msg` を level 別に色分けして modal RichTextBox に描画する（writer 側仕様は本書既載のまま不変）。
+
+### 配線
+
+- `fabriq_operator.ps1` L23 が `lib/log_viewer.ps1` を dot-source する。公開関数は `Get-ModuleTelemetryLog -Order [-ModulesDir]`（`log_viewer.ps1` L28）と `Show-ModuleLogViewer -Order [-ModuleName]`（同 L118）。
+- `flex_dashboard.ps1` L375-383 が `DataGridViewButtonColumn` `'LogBtn'`（`Text="Log"`, `Width=52`）を Run 列（`'RunBtn'` L390-）の **左**に追加する。
+- `flex_dashboard.ps1` L652 の `Add_CellContentClick` ハンドラが、`LogBtn` 列クリック時に `Show-ModuleLogViewer -Order ([int]$tag.Order) -ModuleName "$($tag.MenuName)"` を呼ぶ（L661-662）。
+- **非破壊**: `LogBtn` 分岐は L663 で `return` し、RunBtn 側の `$result.Action` 設定・`$form.Close()`（L680-682）には到達しない。FlexProfile の状態を変えず、ダッシュボードに留まる（実装コメント L370-374 / L659-660）。
+- gate/blocked 行のガード（L670-679）は `LogBtn` 分岐の `return` より後にあるため、**grayout された blocked 行でも [Log] は有効**（実行不能でも過去の挙動を読める）。
+
+### エントリ識別の堅牢性契約（t-0074 設計）
+
+`Get-ModuleTelemetryLog` は filename の先頭 sequence（時系列 4 桁）では **なく**、`envelope.start` イベントの **Profile Order** でエントリを識別する。理由は filename seq が `__RESTART__` でリセットして衝突するため（`log_viewer.ps1` L14-15）。
+
+- **現セッションのみ参照**: `$ModulesDir` 未指定時は現 `$script:SessionID` の `modules` フォルダだけを見る（L46-49）。resume 時に生まれるオーファンフォルダや他 Profile run が混入しない（L12-13）。`$script:SessionID` が空なら空配列を返す（L48）。
+- **権威フィールドは `profileOrder`**: マッチは `envelope.start` の `profileOrder`（main.ps1 の Profile context 由来）を `[int]` 化して照合する（L73-80）。本番では `Invoke-SafeCommand` / `Invoke-SafeCommandAsync` が `Start-ModuleTelemetry` を `-Order` 無しで呼ぶため **plain `order` フィールドは常に 0** であり、`order` は `profileOrder` が無い/0 の場合の **fallback** としてのみ参照される（L63-67, L81-83）。
+- **最新 run を選択**: 同一 Order がそのセッションで複数回走った場合、ファイルの `LastWriteTimeUtc` 最大（= 最新）を採用する（L94-96）。`__RESTART__` で in-process の sequence カウンタがリセットされても、実時刻ベースなので破綻しない。
+- **壊れた行はスキップ**: 部分書き込みで JSONL 行が壊れていても `ConvertFrom-Json` の失敗を `catch` して continue し、fatal にしない（L72, L102）。telemetry schema は internal なので欠損フィールドも許容する defensive parse（L19-20）。
+- **描画は 5000 行上限**: `$script:LogViewerMaxLines = 5000`（L26）。`windows_update` 等 chatty なモジュールが上限を超えた場合、超過分は silent drop せず「`... truncated: N more line(s).`」の切り捨て通知を出す（L178-181, L193-197）。
+- **空状態**: 当該 Order の telemetry が無い（telemetry 無効、または未実行）場合は空配列を返し（L92, L115）、ビューワは "No log captured for this entry." を表示する（L171-174）。
+
+### 描画とフッタ
+
+- level → 色: `error`（赤）/ `warning`（橙）/ `success`（緑）/ `skip`（灰）/ それ以外（本文色）を `switch` で割り当て（`log_viewer.ps1` L183-189）。`[LEVEL] message` 形式で append（L191）。
+- modal RichTextBox は read-only / monospaced / 両スクロール（L143-153）。
+- フッタに redaction 注記 "Values are redacted; see the raw transcript for unmasked detail." を表示（L203）。ビューワは telemetry を読むだけなので、書き手側の redaction（hash-and-redact-v1）を通った値しか出ない。
+
+---
+
 ## 公開 API への昇格（未実施）
 
-`KERNEL_API.md` の §1〜§5（公開関数 / グローバル / 環境変数 / Profile CSV / ModuleResult 契約）には telemetry レイヤは **載せていない**。理由は dev/TELEMETRY_INTERNAL.md §2 が明記する通り「外部 consumer がまだ存在しない」「schema を自由に変更できる余地を残す」。fabriq_studio や fabriq_evidence_manager 等が telemetry を読み始めた段階で `KERNEL_API.md §11` 新設で MINOR 昇格する想定（その時点で schema は frozen 化）。
+`KERNEL_API.md` の §1〜§5（公開関数 / グローバル / 環境変数 / Profile CSV / ModuleResult 契約）には telemetry レイヤは **載せていない**。**KERNEL_API.md の公開サーフェスは kernel 3.6.0 でも不変**で、telemetry セクションは存在しない（schema を自由に変更できる余地を残す方針）。
 
-それまでは: **モジュール開発者は telemetry の存在を意識せず Show-* / Import-ModuleCsv / `New-ModuleResult` だけを使う**。telemetry は副次副作用としてバックグラウンドで動く。
+ただし kernel 3.6.0（t-0074）以降、**telemetry を読む in-tree（fabriq 本体内）consumer は既に存在する** — 上記「最初の read-only 消費者」節の FlexProfile [Log] ビューワ（`apps/fabriq_operator/lib/log_viewer.ps1`）がそれである。この consumer は **read-only 消費のみ**で、JSONL を append し直す・schema を約束させるといった writer 契約には関与しない。ビューワ側も missing フィールドを許容する defensive parse（`log_viewer.ps1` L19-20）で format drift に追従するため、schema を frozen 化せずに済んでいる。
+
+公開 API への昇格は **依然として未実施**。fabriq_studio や fabriq_evidence_manager 等の **外部プロセス**が telemetry を読み始めた段階で `KERNEL_API.md §11` 新設で MINOR 昇格する想定（その時点で schema は frozen 化）。in-tree consumer の出現はこの判断材料の一つだが、KERNEL_API への掲載トリガそのものではない。
+
+モジュール開発者側の前提は不変: **telemetry の存在を意識せず Show-* / Import-ModuleCsv / `New-ModuleResult` だけを使う**。telemetry は副次副作用としてバックグラウンドで動き、[Log] ビューワはその副産物を read-only で見せる。

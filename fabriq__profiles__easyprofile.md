@@ -1,8 +1,8 @@
 # EasyProfile — 軽量 AutoPilot ランナー
 
 > **対象**: fabriq / profiles（`profiles/easy_template/`）
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 `profiles/easy_template/` 配下に置かれる「**fabriq の正規ダッシュボード（Linear / FlexProfile）を通さず、選択された数モジュールだけ即実行する 1-shot ランナー**」のテンプレート。`framework_overlay_rules.json` により `profiles/` ツリー全体が overlay 時に保持されるため、`profiles/easy_<案件名>/` にディレクトリごとコピーして案件単位の easyprofile を並列運用できる。
 
@@ -21,7 +21,7 @@
 | AutoPilot | プロファイル内 `__AUTOPILOT__` で opt-in | **強制 ON**（`$global:AutoPilotMode=$true` を起動時にセット） |
 | AutoPilot 間 wait | `WaitSec=N` 指定可 | **0 秒固定**（`$global:AutoPilotWaitSec=0`） |
 | 再起動跨ぎ resume | あり（`__RESTART__` + `resume_state.json` + RunOnce） | なし（`__RESTART__` は通常モジュールとして扱われず Script 解決失敗で `[NOT FOUND]` 扱い） |
-| 特殊マーカー対応 | `__AUTOPILOT__` / `__ASYNC__` / `__RESTART__` / `__REEXPLORER__` / `__AUTO_to_<User>__` の 5 種 | **対応なし** — マーカー解釈器を持たないため、書いても通常 ScriptPath として `Test-Path` で蹴られる |
+| 特殊マーカー対応 | `__AUTOPILOT__` / `__ASYNC__` / `__RESTART__` / `__REEXPLORER__` / `__GATE__` / `__AUTO_to_<User>__` の 6 種 | **対応なし** — マーカー解釈器を持たないため、書いても通常 ScriptPath として `Test-Path` で蹴られる |
 | async / Runspace | kernel 3.3.0 以降は `async_config.json.DefaultAsync=true` で全モジュール async 既定 | **直接 `& $scriptPath` で同期実行**（`Invoke-SafeCommand` / `Invoke-SafeCommandAsync` を経由しない） |
 | Segment フィルタ（per-row） | `Resolve-ProfileModules` が `$env:FABRIQ_SEGMENT` を per-row で set/clear | `easyprofile.ps1` が同じ env-var contract で per-row set/clear（kernel 3.3.1 期に追加） |
 
@@ -150,7 +150,7 @@ $scriptList = @($allEntries | Where-Object { $_.Enabled -eq "1" })
 
 ## 制限事項（fabriq 正規経路との非互換）
 
-- **`__ASYNC__` / `__AUTOPILOT__` / `__RESTART__` / `__REEXPLORER__` / `__AUTO_to_<User>__` の特殊マーカー非対応**: マーカー解釈器を持たないため `Test-Path` で蹴られて `[NOT FOUND]` 扱いになる。マーカー機能が必要な場面は正規 Profile（Linear / FlexProfile）を使う
+- **`__ASYNC__` / `__AUTOPILOT__` / `__RESTART__` / `__REEXPLORER__` / `__GATE__` / `__AUTO_to_<User>__` の特殊マーカー非対応**: マーカー解釈器を持たないため `Test-Path` で蹴られて `[NOT FOUND]` 扱いになる。`__GATE__` 前進バリア（kernel 3.6.0 で追加、Linear / FlexProfile では `Get-FabriqGateBarrier` が窓内の失敗で後続をブロック）も EasyProfile では効かず、書いても 1 行として `Show-Skip "Script not found"` で読み飛ばされるだけ。マーカー機能が必要な場面は正規 Profile（Linear / FlexProfile）を使う
 - **再起動跨ぎ resume なし**: `Save-ResumeState` / `Register-FabriqRunOnce` を呼ばないため、モジュール内で OS 再起動が走ると単純にプロセスが終わる。再起動を含むシーケンスは正規 Profile + `__RESTART__` を使う
 - **Evidence 収集なし**: `Capture-ScreenEvidence` / `Write-ExecutionHistory` を呼ばないため `evidence/` 配下に何も残らない。納品向け作業ではなく**現場の臨時作業**を前提とする
 - **kernel 3.3.0 の `DefaultAsync` の対象外**: easyprofile.ps1 は `Invoke-SafeCommand` / `Invoke-SafeCommandAsync` を経由せず直接 `& $scriptPath` で実行するため、`async_config.json` の `DefaultAsync` / `Enabled` 設定は EasyProfile には影響しない。**Status Monitor の Skip ボタンも timeout 安全網も無し**。ハングしたら手動で PowerShell ウィンドウを閉じるしかない（→ ハングリスクのある winget_install / windows_update 等の長時間モジュールは EasyProfile では運用しない）

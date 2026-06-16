@@ -1,8 +1,8 @@
 # FlexProfile ダッシュボード操作
 
 > **対象**: fabriq / usage
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 `[Execute (Flex)]` で開く **state-aware 部分実行ダッシュボード** の使い方。Linear（先頭から末尾まで自動進行）に対し、Flex は「**1 モジュール単位で再実行可能 + 完了タイミングは operator 判断**」の運用モデル。kernel 3.1.0 で導入、3.1.x 系で安定化、3.2.0 で `Group` 列追加。
 
@@ -61,15 +61,15 @@ kernel 3.1.5 以降の Flex は AutoPilot トグルを **持たない**。`[Run]
 │   [Run: NetworkBlock]  [Run: Tweaks]  [Run: Cleanup]    ...                 │
 ├────────────────────────────────────────────────────────────────────────────┤
 │ DataGridView（高さ 470 px）                                                  │
-│   ┌──────┬──┬──────┬──────────┬─────────┬─────────┬──────┐                │
-│   │ Chk  │# │Group │ Module   │ Status  │Verified │ Run  │                │
-│   ├──────┼──┼──────┼──────────┼─────────┼─────────┼──────┤                │
-│   │ ☐    │10│      │__AUTO... │ Success │   -     │[Run] │                │
-│   │ ☑    │20│Net   │hostname… │ Success │ ●PASS   │[Run] │                │
-│   │ ☐    │30│Net   │ipaddres… │ Error   │ ●FAIL   │[Run] │                │
-│   │ ☐    │40│      │__RESTART │ Success │   -     │[Run] │                │
+│   ┌──────┬──┬──────┬──────────┬─────────┬─────────┬──────┬──────┐         │
+│   │ Chk  │# │Group │ Module   │ Status  │Verified │ Log  │ Run  │         │
+│   ├──────┼──┼──────┼──────────┼─────────┼─────────┼──────┼──────┤         │
+│   │ ☐    │10│      │__AUTO... │ Success │   -     │[Log] │[Run] │         │
+│   │ ☑    │20│Net   │hostname… │ Success │ ●PASS   │[Log] │[Run] │         │
+│   │ ☐    │30│Net   │ipaddres… │ Error   │ ●FAIL   │[Log] │[Run] │         │
+│   │ ☐    │40│      │__RESTART │ Success │   -     │[Log] │[Run] │         │
 │   │ ...                                                                     │
-│   └──────┴──┴──────┴──────────┴─────────┴─────────┴──────┘                │
+│   └──────┴──┴──────┴──────────┴─────────┴─────────┴──────┴──────┘         │
 ├────────────────────────────────────────────────────────────────────────────┤
 │ Footer Top:                                                                 │
 │   [Select All] [Clear All]    WaitSec [3]   [Run Selected (N)]  [Restart Now]│
@@ -91,7 +91,10 @@ kernel 3.1.5 以降の Flex は AutoPilot トグルを **持たない**。`[Run]
 | `Module` | MenuName |  |
 | `Status` | 90 | Pending / Success / Partial / Error / Skipped / Cancelled。CellFormatting で **背景色付きバッジ** 描画 |
 | `Verified` | 70 | `-` / `PASS` / `FAIL`。PASS=緑バッジ、FAIL=赤バッジ |
+| `Log` | 52 | 行内 `[Log]` ボタン（kernel 3.6.0+、TM t-0074）。`Show-ModuleLogViewer` を開く **非破壊** 操作（後述 §1-2） |
 | `Run` | 56 | 行内 `[Run]` ボタン（kernel 3.1.8+。footer の "Run This: M" を置き換え） |
+
+`Log` 列は `DataGridViewButtonColumn 'LogBtn'`（`Text="Log"`, `Width=52`）で、Run 列の **左** に追加される（`flex_dashboard.ps1` L375-383、`RunBtn` 追加は L390-398）。
 
 ### Status バッジの色
 
@@ -124,6 +127,38 @@ kernel 3.1.5 以降の Flex は AutoPilot トグルを **持たない**。`[Run]
 - `$pendingFinalize = $true`（finalize 提案バッジが立つ）
 
 `Order` を渡すことで「同 MenuName の兄弟行」の片方だけをリセットできる。
+
+### 1-2. 行内 `[Log]` ボタン: モジュールログビューワ（kernel 3.6.0+）
+
+各行の `[Log]` ボタンは、当該エントリのテレメトリログを **read-only / presentation-only** で表示する modal ビューワを開く。`Run` ボタンと違い、**Flex 状態を一切変えない**（`$result.Action` をセットせず、dashboard も閉じない。`flex_dashboard.ps1` L370-374, L661-664）。グレーアウトされた blocked 行でも `[Log]` は有効（後述 §1-3）。
+
+- **配線**: `flex_dashboard.ps1` の `CellContentClick` ハンドラが、クリック列名が `LogBtn` のとき `Show-ModuleLogViewer -Order ([int]$tag.Order) -ModuleName "$($tag.MenuName)"` を呼び、`return` する（L661-664）。`RunBtn` 分岐（破壊的）には到達しない。
+- **実装**: `apps/fabriq_operator/lib/log_viewer.ps1`（`fabriq_operator.ps1` が dot-source、`fabriq_operator.ps1` L23）。公開関数は `Get-ModuleTelemetryLog -Order [-ModulesDir]`（log_viewer.ps1 L28）と `Show-ModuleLogViewer -Order [-ModuleName]`（同 L118）。
+- **何を読むか**: 既存のエントリ別テレメトリ JSONL（`logs/telemetry/<SessionID>/modules/<seq>_<name>.jsonl`）。別のログ stream は作らず、`Show-*` が記録済みの `type=show.<level>` / `tag` / `msg` を level 別に色分けして modal の `RichTextBox` に描画する（log_viewer.ps1 L4-9, L143）。
+
+#### 堅牢性契約（log_viewer.ps1 L11-20）
+
+- **現セッションのみ参照**: `$script:SessionID` フォルダだけを読む。resume で生成されたオーファンフォルダや他 Profile の run は混入しない（L12-13, L47-49）。
+- **エントリ識別は `envelope.start.order`**（Profile Order）。filename の seq は `__RESTART__` でリセットして衝突するため使わない（L14-15, L87）。
+- **同一 Order が複数回 run された場合は最新を選択**（ファイルの `LastWriteTimeUtc` 最大。restart-proof、L16-17）。
+- **壊れた JSONL 行はスキップ**（partial write 耐性、L18）。
+- **描画は 5000 行上限**。超過分は破棄せず切り捨て通知を出す（`$script:LogViewerMaxLines = 5000`、L26, L178-196）。
+- テレメトリが無い Order（テレメトリ無効 / 未実行）では空配列を返し、空状態として表示（L29-32）。
+
+> kernel の公開 API は不変。本ビューワはテレメトリを **read-only で消費するだけ**（`KERNEL_API.md` に telemetry セクションは無い）。
+
+### 1-3. `__GATE__` バリアの UI 反映（グレーアウト、kernel 3.6.0+）
+
+profile に `__GATE__` 前進バリア行（特殊マーカー、`_IsGate=true` の checkpoint）が含まれる場合、`flex_dashboard.ps1` が kernel と **同じ** 判定ヘルパ `Get-FabriqGateBarrier` を呼んで barrier（最初の未充足ゲートの Order、無ければ `$null`）を計算する（L142-148）。**enforcement の権威は kernel 側**（`Invoke-BatchExecution` の admission control）であり、UI はその反映に過ぎない（L139-141）。
+
+ゲート行・blocked 行の見え方：
+
+- **`__GATE__` 行（checkpoint 本体）**: 青タイント `ARGB(214,224,240)` で塗られ、`Checked` セルが `ReadOnly`（チェック不可）。tooltip に "Gate checkpoint: blocks Orders at/after it while the prior window has Error/Partial." を表示（L453-456）。ゲート行は実行されない（`RunBtn` 押下時 `if ($tag.IsGate) { return }`、L670）。
+- **barrier 以降の blocked 行**（`Order >= barrier`、L428）: `Checked=false` + `ReadOnly` でチェック不可、`MenuName` / `Order` セルを灰色 `ARGB(150,150,150)` に dim、tooltip に "Blocked by unsatisfied gate at Order <barrier>; resolve upstream failure(s) and re-run." を表示（L463-468）。
+- **`[Select All]` からも除外**: bulk-check 時、`IsGate` または `Blocked` の行は強制的に未チェックにして `continue`（L704-708）。
+- **ただし維持されるもの**: blocked 行でも `Status` / `Verified` バッジ色は `CellFormatting` 経由で描画され続け（ブロックの原因となった失敗が見えるように）、`[Log]` ボタンも有効のまま（L460-462）。blocked 行の `[Run]` を押すと警告 MessageBox を出して何もしない（L671-678）。
+
+判定の意味（barrier が立つ条件）は、各 `__GATE__` が「直前ゲート（または profile 開始）〜自身」の窓を守り、窓内に `Status=Error/Partial` または Post-Apply Verification 失敗（`Verified=$false`）のモジュールが 1 つでもあれば、そのゲートが未充足になる。詳細な契約は [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md) を参照。
 
 ---
 

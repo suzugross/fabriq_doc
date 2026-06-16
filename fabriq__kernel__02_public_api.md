@@ -1,8 +1,8 @@
 # カーネル公開 API（モジュールから利用可能なサーフェス）
 
 > **対象**: fabriq / kernel 公開 API
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 `kernel/KERNEL_API.md` で公式宣言されているサーフェスの解説。fabriq モジュールが安全に依存できる関数・グローバル変数・環境変数・契約の全集合。
 
@@ -22,7 +22,8 @@
 | `Show-Separator` | シアンで横線 `========================================` | なし |
 | `Show-CategorySeparator -Name <string>` | シアンで `=== <Name> ===` | なし |
 
-**禁止事項**: モジュールは `Write-Host` を直接使ってはならない（CLAUDE.md ルール 2）。色付け・ART pulse・将来的な GUI ログ転送をすべて common 経由で得るため。
+**ステータス通知ログの規約**（`E:\fabriq\CLAUDE.md` §2「kernel/common.ps1 の徹底活用」）: 情報・成功・警告・エラー・スキップの**通知ログ**を生の `Write-Host` で自前実装してはならない。必ず `Show-Info` / `Show-Success` / `Show-Warning` / `Show-Error` / `Show-Skip` を使う（`[TAG]` 整形に加え ART pulse 生存シグナルとテレメトリ追跡を内包し、生の `Write-Host` ではこれらが欠落する）。結果整形も同様に自前で組まず `New-ModuleResult` / `New-BatchResult` の契約で返す。
+ただし**視覚的レイアウト目的の `Write-Host` は許容**される（`Show-*` に相当機能がない整形——空行・バナー見出し・区切り枠・項目ごとに `-ForegroundColor` を変える複数行プレビュー表など。お手本: `reg_hklm_config` の preview / verify 表示）。汎用の区切り線は `Show-Separator` / `Show-CategorySeparator` を優先する。実際、全モジュール `.ps1` がレイアウト目的の `Write-Host` を使用しており、全面禁止ではない。
 
 ### §1.2 CSV 読み込み
 
@@ -74,6 +75,19 @@ Confirm-ModuleExecution [-Message <string>]
 | `Test-AdminPrivilege` | `[bool]` | `WindowsPrincipal.IsInRole(Administrator)` を内部で評価 |
 | `Unprotect-FabriqValue -EncryptedValue <string> -Passphrase <string>` | `[string]` | `ENC:` 値の AES-256-CBC 復号（`Import-ModuleCsv` で自動適用されるため通常モジュール側で直接呼ぶ必要はない） |
 
+### §1.6 破壊的削除ガード（since kernel 3.5.0）
+
+CSV 由来パスの再帰削除（`Remove-Item -Recurse` 等）を fail-closed で守るための字句検証関数。`directory_cleaner` の実績ある `Test-ForbiddenPath` ゲートを `common.ps1` へ昇格し、ワイルドカード leaf 対応を追加したもの。
+
+| 関数 | 戻り値 | 用途 |
+|---|---|---|
+| `Test-FabriqProtectedPath -Path <string>` | `PSCustomObject` `{IsSafe; Reason; NormalizedPath}` | 再帰削除対象パスの検証。保護ルート（`C:\Users` 等）・保護ルートの親・3 セグメント未満・解決不能パス・device/拡張長プレフィクス（`\\?\` / `\\.\`）・UNC（`\\host\share`、管理共有 `c$` 含む）・非ドライブレター形を `IsSafe=$false` でブロック。leaf がワイルドカード（`*`/`?`）の場合は親ディレクトリを検証 |
+| `Test-FabriqSafePathComponent -Value <string>` | `[bool]` | 固定ベース配下に `Join-Path` される単一パス成分の検証。空/空白・`.`/`..`・区切り文字・不正ファイル名文字・末尾ドット/空白を拒否 |
+
+**検証の性質**: いずれも**字句検証のみ**（junction/symlink・8.3 短縮名は解決せず `GetFullPath` 任せ）。`/` は事前に `\` へ正規化して変種も捕捉する。device/UNC 判定は純文字列で行うためワイルドカードに対しても安全。
+
+**契約**: CSV 由来のパスに対する再帰削除の前には、これらのガード（または同等の containment 検証）を**確認ゲートの外側**（AutoPilot 自動 Y でも有効な位置）に置くこと。ブロックされた行は **Fail として計上**する（fail-closed）。利用モジュール（`history_destroyer` / `file_delete` / `profile_delete` / `driver_config` / `wallpaper_config`）は `REQUIRES_KERNEL` 3.5.0。
+
 ---
 
 ## §2 公開グローバル変数（読み取り専用）
@@ -113,6 +127,15 @@ SELECTED_PRINTER_<N>_PORT
 
 `hostlist.csv` の `ENC:` フィールドはホスト選択時点で復号されるため、モジュール側はそのまま平文を読める。
 
+#### 自己参照トークン `__SELF__`（since kernel 3.5.0）
+
+hostlist のセル値が `__SELF__` の場合、`Set-SelectedHostEnvironment`（`kernel/main.ps1`）が入室時（リスト選択＋パスフレーズ後）に実行中 PC の live 値（`Get-CurrentPCInfo`）へ**列文脈で解決**し、対応する `SELECTED_*` に流す（OldPCName/NewPCName → ホスト名、EthernetIP → 現 Ethernet IP 等）。
+
+- **解決は入室時に 1 回だけ**。解決後の具体値が `SELECTED_*` に baked される。resume はこの baked 値を復元するため、`__RESTART__` 跨ぎや以降の PC 名変更では**再追従しない**。
+- **対応列**: OldPCName / NewPCName・Ethernet{IP, Subnet, Gateway}・Wifi{IP, Subnet, Gateway}・DNS1〜DNS4。
+- **非対応**: Pin / Printer は非対応（`__SELF__` を置くと空＋警告）。解決不能（該当アダプタ無し・DNS スロット超過等）も空＋警告。
+- `SELECTED_*` の名前 / 型 / 有無の契約は**不変**＝モジュールは解決済みの値を読むだけでトークンを意識しない。
+
 ### §3.2 プロファイル実行パラメータ
 
 | 変数 | 由来 | 用途 |
@@ -138,14 +161,15 @@ SELECTED_PRINTER_<N>_PORT
 | `ErrorMode` | 任意 | AutoPilot 時のエラー処理（空=ダイアログ確認 / `skip` / `retry` 最大 5 回） |
 | `Group` | 任意（kernel 3.2.0〜） | FlexProfile dashboard の Groups バー集約名。Linear `Execute Profile` は無視 |
 
-### §4.2 特殊マーカー（5 種、kernel 3.0.0 で 4 種削除済み）
+### §4.2 特殊マーカー（6 種、kernel 3.0.0 で 4 種削除済み）
 
 | マーカー | 動作 | 導入版 |
 |---|---|---|
 | `__AUTOPILOT__` | 以降を AutoPilot 化（Y/N 自動承認 + 指定 wait 秒のモジュール間スリープ） | 2.0.0 |
-| `__ASYNC__` | 以降を Runspace 実行に切り替え。Status Monitor の Skip ボタン or `async_config.json` の `DefaultTimeoutSec` で強制中断可能。**3.3.0 で意味論拡張**: shipped default `DefaultAsync=true` 時は全モジュールが既に async のため idempotent ON-only no-op（後方互換） | 2.1.0 / 3.3.0 |
+| `__ASYNC__` | 以降を Runspace 実行に切り替え。Execution Toolbar の `[Skip]` ボタン（3.4.0 で Status Monitor を置換）or timeout で強制中断可能。**3.3.0 で意味論拡張**: shipped default `DefaultAsync=true` 時は全モジュールが既に async のため idempotent ON-only no-op（後方互換） | 2.1.0 / 3.3.0 |
 | `__RESTART__` | Windows 再起動 → RunOnce 経由で resume | 2.0.0 |
 | `__REEXPLORER__` | Explorer 再起動（HKCU レジストリ変更の即時反映等） | 2.0.0 |
+| `__GATE__` | 前進バリア（admission control）。直前ゲート〜本マーカの窓に `Error`/`Partial` または Post-Apply Verification 失敗（`Verified=False`）のモジュールが残る間、本マーカ以降の `Order` の実行を `Invoke-BatchExecution` が拒否する（各モジュール実行直前に live 状態で動的評価）。`Success`（`Verified` が `True`/`$null`）/`Skipped`/`Cancelled`/`Pending` はブロックしない。ブロック行は `Pending` 据え置き（`ModuleResult` 契約は不変）。FlexProfile dashboard は同判定で該当行をグレーアウト。`__GATE__` を含まない既存 profile は挙動完全不変 | 3.6.0 |
 | `__AUTO_to_<User>__` | `autologon_config` を該当 User で呼び出し | 2.0.0 |
 
 **3.0.0 で削除**（破壊的変更 / MAJOR 昇格）: `__SHUTDOWN__` / `__PAUSE__` / `__STOPLOG__` / `__STARTLOG__`。旧プロファイルが含んでいても `Resolve-ProfileModules` の `$invalidPaths` 経由で「module not found」warning に降格、他モジュールは続行（graceful degradation）。
@@ -182,7 +206,7 @@ return (New-BatchResult -Success 3 -Skip 1 -Fail 0 -Title "Foo Results" -Verifie
 
 カーネル側 `Invoke-SafeCommand` / `Invoke-KittingScript` は pipeline output を走査して `_IsModuleResult -eq $true` の要素を捕捉する。pipeline capture が失敗した場合は `$global:_LastModuleResult` からフォールバック取得する二重防御。
 
-### Status セマンティクス（実行履歴 CSV / HTML チェックリスト / Status Monitor 共通）
+### Status セマンティクス（実行履歴 CSV / HTML チェックリスト / Execution Toolbar 共通）
 
 | Status | 意味 | HTML 上の色 |
 |---|---|---|
@@ -199,3 +223,22 @@ return (New-BatchResult -Success 3 -Skip 1 -Fail 0 -Title "Foo Results" -Verifie
 - `$false`: 適用は受理されたが再読み込み時に乖離（FAIL）
 
 検証が技術的に困難 or 偽 PASS の risk があるモジュールは `-Verified` を省略する（`$null`）。fabriq では `acl_config` / `spi_config` / `copyfile_config` 等が偽 PASS リスクで除外済み。
+
+---
+
+## §6 導入版の追跡（API Version History）
+
+各公開 API がどの `KERNEL_VERSION` で利用可能になったかは `kernel/KERNEL_API.md` §8（API Version History）が一次ソース。モジュールの `REQUIRES_KERNEL` 判定は「そのモジュールが使う公開 API の導入バージョンの最大値」で求める。プロファイル側の特殊マーカー依存はモジュールの `REQUIRES_KERNEL` には含めない（マーカーは kernel が解釈するため、モジュールスクリプト単体の動作には影響しない）。
+
+本ドキュメントで追記した近年の公開 API の導入版（要点）:
+
+| 公開 API / 要素 | 導入版 | 区分 |
+|---|---|---|
+| `$global:AutoConfirmMode`（§2） | 3.1.0 | MINOR（追加） |
+| `Group` 列（§4.1） | 3.2.0 | MINOR（追加） |
+| `__ASYNC__` 意味論拡張（`DefaultAsync`、§4.2） | 3.3.0 | MINOR（後方互換拡張） |
+| `Test-FabriqProtectedPath` / `Test-FabriqSafePathComponent`（§1.6） | 3.5.0 | MINOR（追加） |
+| 自己参照トークン `__SELF__`（§3.1） | 3.5.0 | MINOR（追加） |
+| `__GATE__` 前進バリア（§4.2） | 3.6.0 | MINOR（追加） |
+
+特殊マーカー削除（`__SHUTDOWN__` / `__PAUSE__` / `__STOPLOG__` / `__STARTLOG__`）は 3.0.0（MAJOR）。Status Monitor から Execution Toolbar への移管は 3.4.0（旧 Status Monitor 関連は 3.5.0 で削除済み・機能損失なし）。

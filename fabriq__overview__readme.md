@@ -1,8 +1,8 @@
 # fabriq 全体像
 
 > **対象**: fabriq / 全体
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 ## fabriq とは
 
@@ -20,9 +20,9 @@ fabriq の機能はすべて次の 4 つの抽象に分解される。
 
 | 軸 | 定義 | 場所 | 件数 |
 |---|---|---|---|
-| **Kernel** | 共通基盤・公開 API・状態管理。すべてのモジュールが依存する単一の運転系 | `kernel/main.ps1` + `kernel/common.ps1`（90+ 関数）+ `kernel/KERNEL_API.md` 公開境界 | 1 セット（SemVer 3.2.2） |
-| **Modules** | 個別の設定タスクを packaging した単位。独立 SemVer + `REQUIRES_KERNEL` で要求カーネル版宣言 | `modules/standard/` + `modules/extended/` | **standard 60 / extended 15** |
-| **Profiles** | モジュール実行順序を CSV で定義する宣言ファイル | `profiles/*.csv` | 13 ファイル（Master_Pre / Master_Config 系列 + sysprep + テンプレート） |
+| **Kernel** | 共通基盤・公開 API・状態管理。すべてのモジュールが依存する単一の運転系 | `kernel/main.ps1` + `kernel/common.ps1`（90+ 関数）+ `kernel/KERNEL_API.md` 公開境界 | 1 セット（SemVer 3.6.0） |
+| **Modules** | 個別の設定タスクを packaging した単位。独立 SemVer + `REQUIRES_KERNEL` で要求カーネル版宣言 | `modules/standard/` + `modules/extended/` | **standard 61 / extended 18（計 79）** |
+| **Profiles** | モジュール実行順序を CSV で定義する宣言ファイル | `profiles/*.csv` | 10 ファイル（Master_Pre / Master_Config 系列 + sysprep + テンプレート、別途 `easy_template/easyprofile.csv`） |
 | **AutoPilot / FlexProfile** | 実行モデル。Linear（先頭から末尾まで自動進行）と Flex（state-aware 部分実行）の 2 経路 | `apps/fabriq_operator/lib/dashboard_form.ps1` + `flex_dashboard.ps1` | 2 dashboard 並走 |
 
 ### Kernel 公開境界
@@ -45,7 +45,7 @@ fabriq の機能はすべて次の 4 つの抽象に分解される。
 | `VERSION` | モジュール SemVer（独立進化） |
 | `REQUIRES_KERNEL` | 要求カーネル版（オーバーレイ更新時の整合性チェックに使用） |
 
-`windows_update` のみ `module.csv` を持たず、`Fabriq.exe` ダッシュボードの専用ボタンから直接呼ばれる例外（このため Standard 件数 60 = `module.csv` あり 59 + `windows_update` 1）。
+`windows_update` のみ `module.csv` を持たず、`Fabriq.exe` ダッシュボードの専用ボタンから直接呼ばれる例外（このため Standard 件数 61 = `module.csv` あり 60 + `windows_update` 1）。
 
 ### Profiles と特殊マーカー
 
@@ -64,9 +64,10 @@ Order,ScriptPath,Enabled,Description,Segment,ErrorMode,Group
 | マーカー | 動作 |
 |---|---|
 | `__AUTOPILOT__` | 以降を AutoPilot 化（`Description` の `WaitSec=N` でモジュール間ウェイト秒指定） |
-| `__ASYNC__` | 以降のモジュールを監視付き Runspace で実行（Skip ボタン / `async_config.json` の `DefaultTimeoutSec` で強制中断可能、kernel 2.1.0 以降） |
+| `__ASYNC__` | 以降のモジュールを監視付き Runspace で実行（Skip ボタン / `async_config.json` の `DefaultTimeoutSec` で強制中断可能、kernel 2.1.0 以降）。kernel 3.3.0 以降は `async_config.json` の `DefaultAsync` が shipped default `true` のため、マーカー有無に関わらず全モジュールが async 化され、本マーカーは idempotent な ON-only no-op として後方互換保持される（kill switch `Enabled=false` は引き続き優先） |
 | `__RESTART__` | Windows 再起動 + RunOnce 経由で次モジュールから自動再開 |
 | `__REEXPLORER__` | Explorer 再起動（レジストリ変更の即時反映） |
+| `__GATE__` | 前進バリア（kernel 3.6.0 以降）。直前ゲート〜本マーカーの窓に `Error` / `Partial` または Post-Apply Verification 失敗（`Verified=False`）のモジュールが残る間、`Invoke-BatchExecution` が本マーカー以降の `Order` の実行を拒否する（動的評価）。FlexProfile dashboard では該当行をグレーアウト。窓が解消すると解除。`Verified=$null`（検証非対応）/ `Pending`（未実行）はブロックしない |
 | `__AUTO_to_<User>__` | `autologon_config` の `autologon_list.csv` から `User` 列一致のエントリで自動ログオン |
 
 詳細は [fabriq__contracts__special_markers.md](fabriq__contracts__special_markers.md) を参照。
@@ -128,14 +129,14 @@ WinForms operator dashboard 表示
 | kernel json 状態ファイル | 6 種（status / session / resume_state / async_config / art_pulse / skip_request） | kernel/json/ |
 | kernel txt | 3 種（passphrase_verify / art_sentences / silence.flag） | kernel/txt/ |
 | kernel csv マスタ | 5 種（categories / hostlist / workers / log_destinations / manifesto） | kernel/csv/ |
-| **Standard モジュール** | **60 件** | README L30 + modules/standard/*/module.csv カウント + windows_update |
-| **Extended モジュール** | **15 件** | modules/extended/*/module.csv カウント（README L221 は 14 だが pianist 追加で 15） |
-| Profiles | 10 ファイル（+ `easy_template/easyprofile.csv`） | profiles/*.csv |
+| **Standard モジュール** | **61 件** | `modules/standard/*/` ディレクトリカウント（module.csv あり 60 + windows_update 1） |
+| **Extended モジュール** | **18 件** | `modules/extended/*/` ディレクトリカウント |
+| Profiles | 10 ファイル（+ `easy_template/easyprofile.csv`） | profiles/*.csv（top-level 10 + easy_template 1） |
 | Apps（GUI ツール群） | 9 件（fabriq_operator + 8 補助具） | apps/ |
 | Commands（ユーティリティ） | 6 件（gpupdate / temp / explore_restart / diag_crypto / get_evidence / system_launcher） | commands/ |
 | 公開契約 doc（本リポジトリ） | 6 件（KERNEL_API は kernel.md 経由） | fabriq__contracts__*.md |
 
-`fabriq_operator/lib/` は **6 .ps1 で構成**（theme / session_form / apps_dialog / quickactions_dialog / dashboard_form / flex_dashboard）。`fabriq_operator.ps1` 自身は薄いブートストラップで、これら 6 ファイルを dot-source する。
+`fabriq_operator/lib/` は **8 .ps1 で構成**（theme / session_form / apps_dialog / quickactions_dialog / dashboard_form / flex_dashboard / execution_toolbar / log_viewer）。`fabriq_operator.ps1` 自身は薄いブートストラップで、これら 8 ファイルを dot-source する。`execution_toolbar.ps1` は kernel 3.4.0 で旧 Status Monitor（別プロセス）の後継として導入された in-process 浮遊ツールバー（Skip / Gyotaq）で、`Show-ExecutionToolbar` / `Hide-ExecutionToolbar` / `Update-ExecutionToolbar` の dedicated STA Runspace 実装を担う。
 
 ## 5 シリーズ内の位置づけ
 
@@ -143,7 +144,7 @@ fabriq シリーズは Windows キッティング・デプロイの全工程を 
 
 | プロジェクト | 言語 / 形態 | 役割 | 本 fabriq との関係 |
 |---|---|---|---|
-| **fabriq** | PowerShell + WinForms + C# ランチャ | キッティング実行フレームワーク本体（カーネル + 75 モジュール + GUI ダッシュボード） | （本ドキュメント対象） |
+| **fabriq** | PowerShell + WinForms + C# ランチャ | キッティング実行フレームワーク本体（カーネル + 79 モジュール + GUI ダッシュボード） | （本ドキュメント対象） |
 | **fabriq_studio** | C# / WPF / .NET 8 | 設定編集 GUI（hostlist 編集、モジュール `_list.csv` 編集、profiles 編集、レジストリ辞書） | **パスフレーズ検証トークン生成**（fabriq 起動の必須前提）+ CSV 編集経路を提供 |
 | **fabriq_evidence_manager** | C# / WPF / .NET 8 | evidence 取り込み・突合・納品エクスポート | **fabriq の `evidence_config` モジュール出力を消費**（manifest schemaVersion=1 公開契約） |
 | **tonebender** | C++ / Win32 native | WinPE 内ディスクイメージ取得・復元 GUI | キッティング前段（OS 配備）。fabriq 配備後の運用とは独立 |
@@ -206,23 +207,23 @@ fabriq が **本体外から依存可能と宣言する公開サーフェス** �
 | 4 | kernel | [fabriq__kernel__03_orchestration.md](fabriq__kernel__03_orchestration.md) | 一括実行・FlexProfile・再起動跨ぎ |
 | 5 | apps | [fabriq__apps__00_apps_overview.md](fabriq__apps__00_apps_overview.md) | GUI ツール群 9 件のカタログ |
 | 6 | apps | [fabriq__apps__01_fabriq_operator_dashboard.md](fabriq__apps__01_fabriq_operator_dashboard.md) | メインダッシュボード詳細 |
-| 7 | modules | [fabriq__modules__00_modules_overview.md](fabriq__modules__00_modules_overview.md) | 標準 60 + 拡張 15 のカテゴリ別一覧 |
+| 7 | modules | [fabriq__modules__00_modules_overview.md](fabriq__modules__00_modules_overview.md) | 標準 61 + 拡張 18（計 79）のカテゴリ別一覧 |
 | 8 | contracts | `fabriq__contracts__*` 6 件 | 開発時に守る公開契約 |
-| 9 | profiles | [fabriq__profiles__00_profiles_overview.md](fabriq__profiles__00_profiles_overview.md) | 既存プロファイル 13 件の用途 |
+| 9 | profiles | [fabriq__profiles__00_profiles_overview.md](fabriq__profiles__00_profiles_overview.md) | 既存プロファイル 10 件（+ `easy_template/easyprofile.csv`）の用途 |
 | 10 | apps（任意） | [fabriq__apps__02_fabriq_ios.md](fabriq__apps__02_fabriq_ios.md) など | 芸術部門サブプロジェクトの読み物 |
 
 kernel は **11 章立て**（`fabriq__kernel__01_overview` 〜 `fabriq__kernel__11_directory_layout`）で、§04 csv_encryption、§05 resume_restart、§06 status_monitor、§07 evidence_history、§08 async_execution、§09 versioning、§10 function_index、§11 directory_layout が個別 doc になっている。
 
-modules は **76 件**（`fabriq__modules__00_modules_overview.md` + 75 個別モジュール doc）。本リポジトリで個別解説を必要とするモジュールは個別 doc を作成する方針で、CSV 駆動の薄いラッパに留まるモジュールは overview のテーブル行のみで足る。
+本リポジトリの modules doc は **80 件**（`fabriq__modules__00_modules_overview.md` + 個別モジュール doc）で、ソース側のモジュール総数 79（standard 61 + extended 18）に対応する。本リポジトリで個別解説を必要とするモジュールは個別 doc を作成する方針で、CSV 駆動の薄いラッパに留まるモジュールは overview のテーブル行のみで足る。
 
 apps は **6 件**（`00_apps_overview` + `01_fabriq_operator_dashboard` + `02_fabriq_ios` + `03_other_apps` + `04_dev_template_and_tooling` + `05_commands`）。
 
 ## 配布・デプロイ
 
 - **配布**: フォルダ `E:\fabriq\` を運搬媒体（USB / ネットワーク共有）に配置するだけで配布可能（self-contained）
-- **デプロイ**: `Deploy.bat` を実行すると USB から対象 PC にフォルダコピーする（`Deploy.bat` は媒体上で完結する PowerShell 不要のヘルパ）
+- **デプロイ**: 運搬媒体から対象 PC へフォルダをコピーして配置する。かつて USB→対象 PC コピーを担っていた `Deploy.bat`（媒体上で完結する PowerShell 不要のヘルパ）は **kernel 3.6.0 で廃止・削除済み**（CHANGELOG `[3.6.0]` Removed、TM t-0042。運用で一度も使用しておらず不要と判断）。`source_media.id`（MediaSerial Priority 2）の唯一の生成元だったが、消費側は `Get-VolumeSerial` フォールバック付き（`common.ps1` / `main.ps1`）のため MediaSerial に影響なし
 - **本体起動**: 対象 PC 上で `Fabriq.exe` をダブルクリック → UAC 自動昇格 → ダッシュボード表示
-- **更新オーバーレイ**: `dev/framework_overlay_rules.json` を介した本体テンプレート部分上書き（fabriq_studio 側の `FabriqUpdateDialogViewModel` から呼ぶ。詳細は [fabriq__contracts__overlay_contract.md](fabriq__contracts__overlay_contract.md)）
+- **更新オーバーレイ**: `dev/framework_overlay_rules.json` を介した本体テンプレート部分上書き（fabriq_studio 側の `FabriqUpdateDialogViewModel` から呼ぶ。詳細は [fabriq__contracts__overlay_contract.md](fabriq__contracts__overlay_contract.md)）。なお `framework_overlay_rules.json` の kernel bundle `includePaths` には削除後も `Deploy.bat` の entry が残存している（ソース側の未整理。実ファイルは 3.6.0 で削除済み）
 
 ## サードパーティ
 

@@ -1,10 +1,10 @@
 # fabriq_operator ダッシュボード仕様
 
 > **対象**: fabriq / apps/fabriq_operator
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
-`apps/fabriq_operator/` は fabriq の操作員向けメインダッシュボードです。`fabriq_operator.ps1` は WinForms アセンブリを読み込み、`lib/` 以下の 6 ファイルを dot-source するだけのブートストラップで、機能本体はすべて `lib/*.ps1` 側に分散しています。
+`apps/fabriq_operator/` は fabriq の操作員向けメインダッシュボードです。`fabriq_operator.ps1` は WinForms アセンブリを読み込み、`lib/` 以下の 8 ファイルを dot-source するだけのブートストラップで、機能本体はすべて `lib/*.ps1` 側に分散しています。
 
 ## ファイル構成
 
@@ -17,6 +17,8 @@
 | `lib/flex_dashboard.ps1` | FlexProfile ダッシュボード (`Show-FlexDashboard`) |
 | `lib/quickactions_dialog.ps1` | "And More..." サブダイアログ (`Show-AndMoreDialog`) |
 | `lib/apps_dialog.ps1` | FabriqApps ランチャー (`Show-AppsDialog`) |
+| `lib/log_viewer.ps1` | エントリ別テレメトリ ログビューワ (`Show-ModuleLogViewer` / `Get-ModuleTelemetryLog`、kernel 3.6.0+) |
+| `lib/execution_toolbar.ps1` | 実行ツールバー (`Show-ExecutionToolbar` / `Hide-ExecutionToolbar` / `Update-ExecutionToolbar`、旧 status_monitor 後継、3.4.0+) |
 
 ## セッション開始フォーム (`Show-SessionSetupForm`)
 
@@ -95,9 +97,21 @@ Linear 経路の単方向実行に対し、**1 モジュール単位で再実行
 | Module | MenuName |
 | Status | Pending / Success / Partial / Error / Skipped / Cancelled。CellFormatting で badge 描画 (Success=緑, Partial=黄, Error=赤, Skipped/Cancelled=グレー, Pending=薄グレー) |
 | Verified | -/PASS/FAIL。PASS=緑バッジ, FAIL=赤バッジ |
-| Run | 行内ボタン。クリックで RunSingle dispatch (3.1.8 で footer の "Run This: M" を置き換え) |
+| Log | `DataGridViewButtonColumn 'LogBtn'`（Text="Log", Width=52）。Run 列の左に追加。クリックで `Show-ModuleLogViewer -Order -ModuleName` をモーダル起動 (kernel 3.6.0+)。RunBtn と異なり **非破壊** で、`$result.Action` を触らず form も閉じない (grayout された blocked 行でも有効) |
+| Run | `DataGridViewButtonColumn 'RunBtn'`（Text="Run", Width=56）。クリックで RunSingle dispatch (3.1.8 で footer の "Run This: M" を置き換え) |
+
+`CellContentClick` は列名で厳密に分岐し、`LogBtn` クリックは `Show-ModuleLogViewer` を呼んで return、`RunBtn` のみ RunSingle へ進む。
 
 右クリックメニュー: 「Mark as Pending (reset state)」が 1 項目。Action=`ResetState` で発火。
+
+### `__GATE__` 前進バリアの UI 反映 (kernel 3.6.0+)
+
+`__GATE__` 行のグレーアウトと barrier 以降の blocked 行 dimming は、すべて kernel と同じ純関数 `Get-FabriqGateBarrier`（`common.ps1`）でグリッド構築前に barrier（最初の unsatisfied gate の Order、無ければ `$null`）を算出して反映する。**enforcement の権威は kernel 側にあり、UI はその反映に徹する**（admission control は `Invoke-BatchExecution` が module 実行直前に同関数を再評価して行う）。
+
+- **`__GATE__` 行**（`_IsGate=true`）: 行背景を青タイント ARGB(214,224,240) に塗り、`Checked` セルを `ReadOnly=true` にして実行・選択不可にする。Status セルの tooltip にゲートの役割を表示。`__GATE__` 行は実行されない checkpoint であり、`RunBtn` クリックは `$tag.IsGate` 判定で即 return する。
+- **blocked 行**（barrier!=null かつ Order>=barrier）: `Checked` を false 固定 + `ReadOnly=true` にし、`MenuName` / `Order` セルの文字色を灰色 ARGB(150,150,150) に落とす。tooltip に「Blocked by unsatisfied gate at Order N」を表示。`RunBtn` クリックは確認ダイアログ（"This module is blocked by an unsatisfied gate."）を出して中断する。
+- **Status / Verified バッジ色と `[Log]` ボタンは blocked 行でも有効のまま** — ブロックの原因となった失敗が見えるよう、CellFormatting のバッジ描画は維持され、テレメトリ閲覧も妨げない。
+- **`[Select All]` からの除外**: gate 行・blocked 行は `IsGate` / `Blocked` タグで判定し、bulk-check の対象外（常に未チェック）。同様に `Run Selected` 集計でも gate / blocked 行は `continue` でスキップされる。
 
 ### Groups バー (3.2.0+)
 
@@ -129,6 +143,46 @@ Profile CSV に `Group` 列があり値が入っている場合、Header 直下�
 ## FabriqApps ダイアログ (`Show-AppsDialog`)
 
 `apps/<name>/<name>.ps1` 規約で `apps/` 配下の各サブディレクトリを走査し、`fabriq_operator` と `fabriq_ios` を除外した一覧を提示する。`[Launch]` で Action=`Launch`, AppName, AppPath を返し、main.ps1 が `& $appPath` で起動する。
+
+## モジュール ログビューワ (`log_viewer.ps1`, kernel 3.6.0+)
+
+FlexProfile グリッドの各行 `[Log]` ボタンから呼ばれる **presentation-only** なビューワ。別ログ stream は作らず、Show-* 系が既に記録した **エントリ別テレメトリ JSONL**（`logs/telemetry/<SessionID>/modules/<seq>_<name>.jsonl`）を read-only で読み、`type=show.<level>` の `tag` / `msg` を level 別に色分けして modal RichTextBox に描画する。提供関数は 2 つ:
+
+- `Get-ModuleTelemetryLog -Order [-ModulesDir]` — 指定 Profile Order の **最新 run** の `@{ Level; Tag; Message; Ts }` 配列を返す純データ取得関数。`-ModulesDir` はテスト用に注入可能で、省略時は現セッションの telemetry modules フォルダを既定とする。
+- `Show-ModuleLogViewer -Order [-ModuleName]` — 上記を読んで modal フォーム（820×580, Sizable）に描画する。**非破壊**で、FlexProfile の状態を変えず呼び出し元はダッシュボードに留まる。
+
+### 堅牢性契約 (t-0074 設計)
+
+- **現セッションのみ参照**: `$script:SessionID` フォルダのみを読む。resume 時に作られるオーファンフォルダや他 Profile の run は混入しない。
+- **エントリ識別は `envelope.start` の `profileOrder`**（Profile Order）を使う。filename の seq は `__RESTART__` 跨ぎでリセットして衝突するため不使用。`profileOrder` が 0 でない場合のみ採用し、無ければ `order` フィールドをフォールバックとして読む。
+- **同一 Order の複数 run は最新優先**: `LastWriteTimeUtc` 最大のファイルを選択（実時計なので `__RESTART__` 耐性がある）。
+- **壊れた JSONL 行はスキップ**（部分書き込み）で致命化しない。`ConvertFrom-Json` 失敗行は continue。
+- **描画は 5000 行上限**（`$script:LogViewerMaxLines`）。超過時は切り捨て、ドロップ数を warning 色で通知する。
+- level → 文字色: error=ARGB(198,40,40) / warning=ARGB(180,95,6) / success=ARGB(46,125,50) / skip=ARGB(120,120,120) / info=`$fgText`。ログが空のときは「No log captured for this entry.」を表示。
+- フッタに「Values are redacted; see the raw transcript for unmasked detail.」の注記 + `[Close]`。
+
+kernel 公開 API は不変で、テレメトリはこのビューワが read-only 消費するのみ（KERNEL_API.md に telemetry セクションは無い）。
+
+## 実行ツールバー (`execution_toolbar.ps1`, 3.4.0+)
+
+3.4.0 で retire した `kernel/ps1/status_monitor.ps1`（`Start/Stop-StatusMonitor`）の **in-process 後継**。旧モニタの視覚的アイデンティティ（ダークテーマ / Consolas / シアン GroupBox タイトル / `[OK]` `[!!]` `[--]` マーカー / Surkitinisme アートパネル）をそのまま再現しつつ、以下を改善している:
+
+- kernel の powershell.exe 内の専用 STA Runspace 上で動作し、Defender / ASR の子プロセス制限を回避する。
+- PC Info を `$FabriqToolbarShared.TargetHostInfo`（`Set-SelectedHostEnvironment` が `Update-ExecutionToolbar` 経由で push）+ ライブ OS クエリ（`Get-NetIPAddress` / `Get-Printer` 等）から構成し、書き出し済み `status.json` への依存を排除した。
+- 旧モニタ同様、アートパネルは `art_pulse.txt` / `art_sentences.txt` / `silence.flag` / `status.json` をディスクから直接読む。
+
+### 公開関数（kernel main.ps1 / common.ps1 から呼ばれる）
+
+- `Show-ExecutionToolbar` — ツールバーを起動（main.ps1 が旧モニタの代わりに呼ぶ）。
+- `Hide-ExecutionToolbar` — ツールバーを閉じる。
+- `Update-ExecutionToolbar [-ExecutionState 'Idle'|'Running'] [-ModuleName <s>] [-TargetHostInfo <hashtable>]` — 状態反映。`Idle` で Skip / Gyotaq ボタン無効、`Running` で有効。main.ps1 はバッチ開始/各モジュール直前で `Running`、完走で `Idle` を渡す。
+- 補助: `Get-FabriqHostInfoFromEnv` — `SELECTED_*` 環境変数から `TargetHostInfo` ハッシュテーブルを再構成（host 選択変更時 / 起動時に使用）。
+
+### ステータスバーのアクションボタン
+
+- **`Skip`**（オレンジ ARGB(255,170,60)）: async モジュールの skip を要求する flag を書く。tooltip「Request async module skip. Only effective for modules running after `__ASYNC__` marker.」。`__ASYNC__` マーカー以降に走るモジュールにのみ有効。
+- **`Gyotaq`**（シアン）: クリックでフォームを一時的に Hide してスクリーンショットを取得（`Save-Screenshot`、保存先は `<EvidenceBasePath>\gyotaku`）し、フォームを復帰させる。
+- いずれも既定は `Enabled=false`（Idle）で、`Update-ExecutionToolbar -ExecutionState 'Running'` 時のみ有効化される。
 
 ## テーマシステム (`theme.ps1`)
 

@@ -1,5 +1,9 @@
 # 更新オーバーレイ契約（External Tool ↔ fabriq）
 
+> **対象**: fabriq / contracts（更新オーバーレイ契約）
+> **対象バージョン**: 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION` / commit 0fca159）
+> **ドキュメント更新日**: 2026-06-16
+
 `KERNEL_API.md §9` で公式宣言された、**外部更新ツール**（代表: `fabriq_studio`、および `dev/build_framework_patch.ps1`）が消費する公開契約。fabriq 本体の再配布・in-place 更新を「site-specific データを保持したまま framework 側だけ差し替える」運用で成立させる。
 
 ---
@@ -49,6 +53,8 @@
 }
 ```
 
+> **注記（`Deploy.bat`）**: 上記 `kernel` bundle の `includePaths` は `dev/framework_overlay_rules.json` を忠実にミラーしたものであり、ソース側 JSON には依然 `"Deploy.bat"` が含まれる（`E:\fabriq\dev\framework_overlay_rules.json:46`、および `:37` の description 文）。ただし `Deploy.bat` ファイル自体は kernel 3.6.0（TM t-0042）で**廃止・削除済み**で `E:\fabriq\Deploy.bat` は存在しない（CHANGELOG `[3.6.0] Removed`）。マニフェスト entry はソース側未整理で残存している状態であり、本 doc はミラーとして entry を保持しつつ両事実を併記する。
+
 ---
 
 ## Bundle 定義
@@ -59,6 +65,8 @@
 | **module:\<name\>** | `modules/{std,ext}/<name>/VERSION` | `modules/{std,ext}/<name>/`（ただし `moduleCsvWhitelist` 以外の CSV は除く） |
 
 `apps/` / `commands/` / `dev/` は個別 `VERSION` を持たず、kernel bundle と同期して動く。
+
+kernel bundle の対象パスに挙げた `Deploy.bat` は `framework_overlay_rules.json` のミラーであり、実ファイルは kernel 3.6.0（TM t-0042）で削除済み。マニフェスト entry のみがソース側未整理で残存している（詳細は上節の注記を参照）。
 
 ---
 

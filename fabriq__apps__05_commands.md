@@ -1,17 +1,25 @@
 # commands/ — 手動操作コマンド集
 
-`e:/fabriq/commands/` は、**Status Monitor の手動操作**または **System Launcher 経由**で操作員が任意のタイミングで呼び出すユーティリティスクリプト群です。Profile 経由で自動実行されるモジュールとは異なり、ここに置かれるスクリプトは「操作員が必要だと判断したとき」に走らせる手元の道具箱としての位置付けで、エビデンス採取や履歴記録の対象外であることが多いのが特徴です。
+> **対象**: fabriq / apps (commands)
+> **対象バージョン**: 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION` / commit 0fca159）
+> **ドキュメント更新日**: 2026-06-16
+
+`E:\fabriq\commands\` は、操作員が任意のタイミングで **手動で呼び出す** ユーティリティスクリプト群です。README のディレクトリツリーでも「ユーティリティコマンド（diag_crypto, get_evidence, gpupdate 等）」と説明されています（`E:\fabriq\README.md` L76）。Profile 経由で自動実行されるモジュールとは異なり、ここに置かれるスクリプトは「操作員が必要だと判断したとき」に走らせる手元の道具箱としての位置付けで、エビデンス採取や履歴記録の対象外であることが多いのが特徴です。
+
+これらのスクリプトは、現行カーネル／Operator GUI のいずれの自動起動経路にも直接は配線されていません（kernel/main.ps1・operator の dashboard_form.ps1 / apps_dialog.ps1 / quickactions_dialog.ps1 のいずれからも `commands/*.ps1` を呼ぶ参照は確認できない）。操作員がファイルシステム上から直接実行する想定です。なお、旧 out-of-process Status Monitor（`Start-StatusMonitor` 等）は kernel 3.4.0 で非推奨化・3.5.0 で物理削除されており、これらのコマンドを Status Monitor の手動ボタンから呼ぶ経路はもう存在しません。Operator GUI 側の常駐 UI は in-process の Execution Toolbar（`apps/fabriq_operator/lib/execution_toolbar.ps1`）に置き換わっていますが、Execution Toolbar は `[Skip]` / `[Gyotaq]` の 2 ボタンのみを提供し、本ディレクトリのコマンド群を起動するボタンは持ちません。
+
+唯一 GUI と接点を持つのは `system_launcher.ps1` で、これは `apps/system_launcher/system_launcher.ps1` と同一実装のコピーです。ただし Operator ダッシュボードの「System Launcher」ボタン（dashboard_form.ps1 L320 / L508-509）から起動されるのは **apps/ 側のコピー**（kernel/main.ps1 L2091-2093 `.\apps\system_launcher\system_launcher.ps1`）であり、commands/ 側のコピーではありません。
 
 ## ファイル一覧
 
 | ファイル | 役割 | 起動経路 |
 |---|---|---|
-| `gpupdate_command.ps1` | グループポリシー強制更新 | Status Monitor / System Launcher |
-| `temp_command.ps1` | カスタム差し込み用テンプレート (空) | Status Monitor |
-| `explore_restart_command.ps1` | Explorer 再起動 | Status Monitor |
-| `diag_crypto.ps1` | 暗号化 / passphrase 状態の診断 | Status Monitor / 開発者手動 |
-| `get_evidence.ps1` | PC 情報の手動採取 (split log 形式) | Status Monitor / FabriqApps |
-| `system_launcher.ps1` | Windows 設定ショートカットパレット (apps/system_launcher と同一実装) | Status Monitor |
+| `gpupdate_command.ps1` | グループポリシー強制更新 | 操作員が手動実行 |
+| `temp_command.ps1` | カスタム差し込み用テンプレート (空) | 操作員が手動実行 |
+| `explore_restart_command.ps1` | Explorer 再起動 | 操作員が手動実行 |
+| `diag_crypto.ps1` | 暗号化 / passphrase 状態の診断 | 操作員 / 開発者が手動実行 |
+| `get_evidence.ps1` | PC 情報の手動採取 (split log 形式) | 操作員が手動実行 |
+| `system_launcher.ps1` | Windows 設定ショートカットパレット (apps/system_launcher と同一実装) | 操作員が手動実行（GUI は apps/ 側コピーを起動） |
 
 ---
 
@@ -26,7 +34,7 @@
 - 末尾 `pause` でユーザーが結果を確認してから閉じる
 
 ### 起動コンテキスト
-Status Monitor の手動ボタンから、または System Launcher の管理ツール枠経由。Profile に組み込むケースは少ない (組み込むなら専用モジュール化される)。
+操作員がファイルシステム上から手動実行する。Profile に組み込むケースは少ない (組み込むなら専用モジュール化される)。
 
 ---
 
@@ -43,7 +51,7 @@ Status Monitor の手動ボタンから、または System Launcher の管理ツ
 ```
 
 ### 起動コンテキスト
-Status Monitor の手動枠に「temp」ボタンとして固定で表示される。ここに案件固有の臨時処理を書き込んで実行する想定。
+操作員がファイルシステム上から手動実行する。ここに案件固有の臨時処理を書き込んで実行する想定。
 
 ---
 
@@ -59,7 +67,7 @@ Status Monitor の手動枠に「temp」ボタンとして固定で表示され�
 - 復帰しなかった場合は警告
 
 ### 起動コンテキスト
-Status Monitor。デスクトップやタスクバーが一時的に消える操作なので、ユーザー確認必須。
+操作員がファイルシステム上から手動実行する。デスクトップやタスクバーが一時的に消える操作なので、`Confirm-Execution` によるユーザー確認必須。
 
 ---
 
@@ -75,8 +83,7 @@ fabriq の暗号化機能 (`Unprotect-FabriqValue` / DPAPI / passphrase) が正�
 4. 各 ENC 値に対して復号試行、成否を表示
 
 ### 起動コンテキスト
-- 開発者の手動診断
-- Status Monitor からトラブルシュート用に呼ぶ (パスフレーズ未投入で `[ENCRYPTED]` のまま動いてしまう問題の切り分け)
+- 開発者 / 操作員がトラブルシュート用に手動実行する (パスフレーズ未投入で `[ENCRYPTED]` のまま動いてしまう問題の切り分け)
 
 CLAUDE.md memory: `project_crypto_security_review.md` で挙げた懸念の確認用。
 
@@ -95,18 +102,18 @@ PC 情報を手動採取して `evidence/pc_information/` 配下にテキスト�
 - 採取対象: 基本情報 (hostname / OS / spec)、その他 PC 構成
 
 ### 起動コンテキスト
-Status Monitor、または FabriqApps から「evidence_config が動かなかったとき / その前後で個別採取したいとき」用に手動起動。
+操作員がファイルシステム上から手動実行する。「evidence_config が動かなかったとき / その前後で個別採取したいとき」用の個別採取手段。FabriqApps ダイアログ (apps_dialog.ps1) は `apps/` 配下のサブアプリのみを列挙し、本スクリプトは一覧に現れない。
 
 ---
 
 ## system_launcher.ps1
 
 ### Role
-`apps/system_launcher/system_launcher.ps1` と **同一実装**。commands/ にも置かれているのは、Status Monitor から手動操作枠で 1-click 起動できるようにするため。
+`apps/system_launcher/system_launcher.ps1` と **同一実装** (バイナリ一致)。commands/ にも複製が置かれている。ただし Operator ダッシュボードの「System Launcher」ボタンが起動するのは apps/ 側のコピー (kernel/main.ps1 L2091-2093) であり、commands/ 側コピーを自動起動する経路は確認できない。
 
 ### 中身
 - 34 項目の Windows ツール (ms-settings: 系 / *.cpl / *.msc / shell:::{GUID} / cmd / powershell / runas)
 - `Invoke-Tool` で Type に応じた Start-Process 起動分岐
 
 ### 起動コンテキスト
-Status Monitor の手動ボタン枠。apps/ 側の利用と機能は同じ。
+操作員がファイルシステム上から手動実行する。機能は apps/ 側と同一。GUI からの起動 (ダッシュボードの「System Launcher」ボタン) は apps/ 側コピーを参照する。

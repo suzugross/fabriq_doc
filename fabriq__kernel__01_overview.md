@@ -1,10 +1,10 @@
 # カーネル全体像
 
 > **対象**: fabriq / kernel
-> **対象バージョン**: kernel 3.3.1（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `5525728`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-12）
-> **ドキュメント更新日**: 2026-05-12
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
-**現行版**: `kernel/KERNEL_VERSION` = `3.3.1`（fabriq ver3.3 — *Manifeste du Surkitinisme*）
+**現行版**: `kernel/KERNEL_VERSION` = `3.6.0`
 
 ## カーネルとは何か
 
@@ -38,7 +38,7 @@ modules/{standard,extended}/<name>/<name>.ps1（実モジュール）
 | **CSV 読み込み + 暗号化透過復号** | `Import-CsvSafe` → 必須列検証 → `ENC:` 値の AES-256-CBC 復号 → `Segment` フィルタ → `Enabled` フィルタ | `Import-ModuleCsv`, `Unprotect-FabriqValue`, `Test-MasterPassphrase` |
 | **再起動跨ぎ** | `__RESTART__` 検出 → 状態保存（`resume_state.json`）→ RunOnce 登録 → 再起動 → 復帰時に `Wait-SystemReady` → `Invoke-AutoResumeCountdown` → 環境復元 → 残モジュール継続 | `Save-ResumeState`, `Load-ResumeState`, `Register-FabriqRunOnce`, `Invoke-CountdownRestart`, `Invoke-AutoResumeCountdown`, `Restore-HostEnvironment` |
 | **エビデンス自動収集** | モジュール実行ごとにスクリーンショット PNG 保存 + 実行履歴 CSV 追記 + プロファイル完了時に HTML チェックリスト生成 | `Capture-ScreenEvidence`, `Save-Screenshot`, `Write-ExecutionHistory`, `Export-HtmlChecklist`, `Initialize-EvidenceBasePath` |
-| **ステータスモニタ** | 別プロセス（`status_monitor.ps1`）を起動し、`status.json` をリアルタイム書き込み → 別ウィンドウで進捗・PC 情報・ART pulse を可視化 | `Write-StatusFile`, `Start-StatusMonitor`, `Stop-StatusMonitor`, `Write-ArtPulse` |
+| **実行ツールバー**（旧ステータスモニタの後継、in-process、since 3.4.0） | kernel の `powershell.exe` 内の専用 STA Runspace に浮遊ツールバーを生成し、実行状態・PC 情報照合・ART pulse を可視化（`[Skip]` / `[Gyotaq]` 操作を含む）。別プロセスを spawn しないため Defender / ASR の子プロセス制限を受けない。旧 out-of-process Status Monitor（`status_monitor.ps1`）は 3.4.0 で非推奨化・3.5.0 で物理削除済み。`status.json` は `Write-StatusFile` が今も書き続けるが、PC Info 照合は `status.json` ではなく `TargetHostInfo`（`SELECTED_*`）+ live OS クエリへ移行 | `Show-ExecutionToolbar`, `Hide-ExecutionToolbar`, `Update-ExecutionToolbar`, `Save-Screenshot`, `Write-StatusFile`, `Write-ArtPulse`, `apps/fabriq_operator/lib/execution_toolbar.ps1` |
 | **AutoPilot / AutoConfirm** | プロファイル一括実行で Y/N 確認を自動承認、モジュール間ウェイトを設定 / FlexProfile 単発実行では Y/N と Press-Enter のみ短絡 | `$global:AutoPilotMode`, `$global:AutoConfirmMode`, `Confirm-Execution`, `Wait-KeyPress` |
 | **セッション管理** | 作業者選択・媒体シリアル取得・`session.json` 保存・パスフレーズ検証 | `Initialize-Session`, `Test-MasterPassphrase`, `Reset-FabriqState` |
 | **公開契約** | カーネル公開 API（§1〜§5）/ 更新オーバーレイ契約（§9）/ Evidence Manifest 契約（§10） | `KERNEL_API.md`, `dev/framework_overlay_rules.json`, `kernel/EVIDENCE_MANIFEST.md` |
@@ -48,11 +48,11 @@ modules/{standard,extended}/<name>/<name>.ps1（実モジュール）
 
 ```
 kernel/
-├── KERNEL_VERSION          ── 3.2.5（カーネル API SemVer の真のソース）
-├── KERNEL_API.md           ── 公開 API サーフェスの明文化（§1〜§11）。L3 に "Current Kernel Version" header（kernel 3.2.4 で release sync 対象に追加、check_version.ps1 が検証）
+├── KERNEL_VERSION          ── 3.6.0（カーネル API SemVer の真のソース）
+├── KERNEL_API.md           ── 公開 API サーフェスの明文化（§1〜§11）。L3 に "Current Kernel Version" header（release sync 対象、check_version.ps1 が検証）
 ├── EVIDENCE_MANIFEST.md    ── manifest.json 公開契約（外部 evidence consumer 向け）
-├── common.ps1              ── 共通ライブラリ（5190 行、telemetry レイヤ + verbose capture を含む）
-├── main.ps1                ── エントリスクリプト・FlexProfile sub-loop・Windows Update ループ（1979 行）
+├── common.ps1              ── 共通ライブラリ（4862 行、telemetry レイヤ + verbose capture を含む）
+├── main.ps1                ── エントリスクリプト・FlexProfile sub-loop・Windows Update ループ（2233 行）
 ├── csv/
 │   ├── categories.csv      ── カテゴリと表示順マスタ
 │   ├── hostlist.csv        ── 対象 PC マスタ（暗号化フィールド対応）
@@ -60,7 +60,7 @@ kernel/
 │   ├── log_destinations.csv── ログ配送先マスタ（log_uploader 用）
 │   └── manifesto.csv       ── マニフェスト本文（演出機能）
 ├── json/                       （runtime / framework 混在 — 静的に存在するのは下記 ★ の 4 件）
-│   ├── status.json         ── (runtime) ステータスモニタ用ライブ状態（atomic write）
+│   ├── status.json         ── (runtime) ライブ状態（`Write-StatusFile` が atomic write、`Remove-StatusFile` が削除）。実行ツールバーの ART パネルが直接 polling。PC Info 照合には不使用
 │   ├── session.json        ── (runtime) 現セッション情報（worker, media serial, start time）
 │   ├── resume_state.json   ── (runtime) 再起動跨ぎ時の状態スナップショット（v1/v2 schema）
 │   ├── async_config.json ★ ── (framework) __ASYNC__ Runspace 制御パラメータ
@@ -68,11 +68,9 @@ kernel/
 │   ├── telemetry_salt.txt    ── (runtime) AI 開発テレメトリの site-specific salt（kernel 3.2.3、初回自動生成、`.gitignore`）
 │   ├── art_pulse.txt     ★ ── (runtime/framework) 動作鼓動カウンタ（演出用、Show-* で +1。空状態でも commit）
 │   └── skip_request.flag   ── (runtime) async モジュール強制スキップ要求の flag ファイル
-├── ps1/
-│   ├── status_monitor.ps1  ── 別プロセス WinForms モニタ（status.json を polling、kernel 3.2.3 で起動診断ログ + defensive fallback 追加）
+├── ps1/                       （旧 status_monitor.ps1 / art_display.ps1 は 3.4.0 で非推奨化・3.5.0 で削除済み。後継は in-process 実行ツールバー `apps/fabriq_operator/lib/execution_toolbar.ps1`）
 │   ├── view_report.ps1     ── HTML チェックリストの単体ビューア
-│   ├── manifesto.ps1       ── マニフェスト表示 GUI
-│   └── art_display.ps1     ── ART 演出（status_monitor に統合済）
+│   └── manifesto.ps1       ── マニフェスト表示 GUI
 └── txt/
     ├── passphrase_verify.txt ── パスフレーズ検証トークン（Studio で生成、起動必須）
     ├── art_sentences.txt   ── ART pulse で表示する一文集

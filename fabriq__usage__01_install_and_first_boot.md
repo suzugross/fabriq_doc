@@ -1,8 +1,8 @@
 # インストールと初回起動
 
 > **対象**: fabriq / usage
-> **対象バージョン**: kernel 3.2.2（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `e513cf1`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-05-06）
-> **ドキュメント更新日**: 2026-05-07
+> **対象バージョン**: kernel 3.6.0（取得元: `E:\fabriq\kernel\KERNEL_VERSION`）+ commit `0fca159`（取得元: `git -C E:\fabriq rev-parse --short HEAD`、2026-06-16）
+> **ドキュメント更新日**: 2026-06-16
 
 USB 媒体を運搬して対象 PC に fabriq を展開し、初回起動を成功させるまでの手順。前提となる **`fabriq_studio` でのマスターパスフレーズ設定** がここで完了していることが起動条件となる。
 
@@ -36,12 +36,14 @@ USB メモリ ルートに fabriq/ フォルダを配置（kernel/ modules/ prof
 USB メモリを対象 PC に挿す
         │
         ▼
-USB 上の Deploy.bat をダブルクリック → 対象 PC に展開
+USB 上の fabriq/ フォルダを対象 PC の配備先（既定 `C:\Windows\work\fabriq`）へコピー
 ```
 
-### Deploy.bat の動作
+> **`Deploy.bat` は kernel 3.6.0（TM t-0042）で廃止・削除済み**（取得元: `E:\fabriq\CHANGELOG.md` `### Removed` L122-128）。USB→対象 PC 自動デプロイツールだったが、運用で一度も使用しておらず不要として削除された。ソースに `E:\fabriq\Deploy.bat` は存在しない（Glob 確認）。配備は **`fabriq/` フォルダを配備先へ手動コピー**（エクスプローラのコピー / `robocopy` 等）して行う。以下に旧 `Deploy.bat` が担っていた挙動を参考として残すが、いずれも現行フレームワークの構成要素ではない。
 
-`E:\fabriq\Deploy.bat`（または USB 上の同名ファイル）は次の手順を順に実行する：
+### 旧 Deploy.bat の動作（廃止済み・参考）
+
+> 以下は 3.6.0 以前に存在した `Deploy.bat` の手順。**現行版には存在しない**。
 
 1. **管理者権限チェック** — `net session` で確認、未昇格なら PowerShell で UAC 昇格してから自身を再実行
 2. **ソースドライブの Volume Serial Number 取得** — `vol` コマンド出力から hex serial を抽出（fallback として WMI `Win32_LogicalDisk.VolumeSerialNumber`）
@@ -65,15 +67,17 @@ USB から直接 `Fabriq.exe` を起動することも理論上可能だが、�
 
 ### `source_media.id` の役割
 
-`Deploy.bat` が書き込んだ Volume Serial は `Initialize-Session` が **メディアシリアルとしてセッション情報に記録** する：
+`Initialize-Session` は **メディアシリアルをセッション情報に記録** する。`MediaSerial` の決定は次の優先順位で行われる（取得元: `E:\fabriq\kernel\common.ps1` L3384-3400）：
 
 ```
 Priority 1: 既存 session.json に記録された MediaSerial を採用（再起動跨ぎ復元）
-Priority 2: kernel/source_media.id を読む（Deploy.bat 由来）
-Priority 3: 上記両方が無ければ "UNKNOWN"
+Priority 2: kernel/source_media.id を読む（外部プロビジョニング marker。fabriq 自身は生成しない）
+Priority 3: 現ドライブの Volume Serial を Get-VolumeSerial で取得
 ```
 
 これは **「どの媒体から配備された fabriq か」を実行履歴 CSV に残すため**。複数の USB を順に展開しているとき、どの USB が原因の不具合かを後から追跡できる。
+
+> **`source_media.id`（Priority 2）の生成元だった `Deploy.bat` は kernel 3.6.0（TM t-0042）で廃止・削除済み**（取得元: `E:\fabriq\CHANGELOG.md` `### Removed` L122-128）。`source_media.id` は fabriq 自身が作成するファイルではなく、削除後の **通常運用では Priority 2 は不在となり Priority 3（`Get-VolumeSerial` フォールバック）が使われる**ため、MediaSerial の記録自体には影響しない（取得元: `common.ps1` L3387-3399 のコメント・`main.ps1` L1599-1602）。外部のプロビジョニング工程が任意に `kernel/source_media.id` を置けば従来どおり Priority 2 として読まれる。
 
 ---
 
@@ -91,7 +95,7 @@ Priority 3: 上記両方が無ければ "UNKNOWN"
 
 詳細は [fabriq_studio__usage__01_workspace_setup.md](fabriq_studio__usage__01_workspace_setup.md) を参照。
 
-**配備時の注意点**: `passphrase_verify.txt` を含めて `Deploy.bat` で展開すること。パスフレーズが必要な現場へは fabriq_studio の出力をそのまま運搬する設計のため、**fabriq 単体には passphrase 設定機能がない**（CLI / GUI どちらも持たない）。
+**配備時の注意点**: `passphrase_verify.txt` を含めて配備先へコピーすること（旧 `Deploy.bat` での自動展開は kernel 3.6.0 で廃止済み。フォルダ全体を手動コピーする）。パスフレーズが必要な現場へは fabriq_studio の出力をそのまま運搬する設計のため、**fabriq 単体には passphrase 設定機能がない**（CLI / GUI どちらも持たない）。
 
 ---
 
@@ -138,7 +142,7 @@ Initialize-Session（workers / mediaSerial / session.json）
 Initialize-ExecutionHistory（logs/history/execution_history.csv）
 Initialize-ModuleSystem（modules/{standard,extended}/*/module.csv 検出）
 Load-Profiles（profiles/*.csv 一覧化）
-Start-StatusMonitor（別プロセスで status_monitor.ps1 起動）
+Show-ExecutionToolbar（in-process STA Runspace 起動、main.ps1 L1702）
         │
         ▼
 Show-OperatorDashboard（メインダッシュボード）
@@ -183,7 +187,7 @@ Fresh Start ルートで実行される検査は次の順：
 1. 配布元 PC で fabriq_studio を起動
 2. 該当の fabriq フォルダをワークスペースとして開く
 3. マスターパスフレーズを設定 → トークン生成
-4. fabriq フォルダを USB に取り直し、`Deploy.bat` で再配備
+4. fabriq フォルダを USB に取り直し、配備先へコピーして再配備（旧 `Deploy.bat` は kernel 3.6.0 で廃止済み）
 
 USB 上で直接 `passphrase_verify.txt` を作る方法は無い（暗号化ロジックが fabriq_studio 側に閉じている）。
 
@@ -191,7 +195,7 @@ USB 上で直接 `passphrase_verify.txt` を作る方法は無い（暗号化ロ
 
 `Show-Error "hostlist.csv not found: kernel/csv/hostlist.csv"` が出て fresh start を中断。
 
-**原因**: 配布元の fabriq フォルダから `kernel/csv/hostlist.csv` が抜けている、または `Deploy.bat` の robocopy で除外設定が効いている。
+**原因**: 配布元の fabriq フォルダから `kernel/csv/hostlist.csv` が抜けている、またはコピー時に除外されている（旧 `Deploy.bat` の robocopy 除外設定は kernel 3.6.0 の Deploy.bat 廃止に伴い該当しない）。
 
 **対処**: 配布元の `kernel/csv/hostlist.csv` を確認、必要なら fabriq_studio で 1 行以上のエントリを編集してから配備し直す。空 CSV でも起動はできるが、対象 PC の自動選択（`$env:COMPUTERNAME` 一致）は機能しない。
 
